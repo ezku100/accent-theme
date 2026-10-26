@@ -97,11 +97,11 @@
 - Consumes: `MatugenTokens` and `MATUGEN_*` environment variables.
 - Produces: isolated hook execution, Waywallen fallback handling, and `watch` command for systemd.
 
-- [ ] Write failing tests for hook timeout/failure isolation, token environment, and watcher change detection.
-- [ ] Run hook/watcher tests; expect import failure.
-- [ ] Migrate active legacy hooks, patch imports away from Kitty-owned modules, and move pacman/Waywallen support files.
-- [ ] Implement watcher using `inotifywait`, `flock`, and the last-accent cache.
-- [ ] Run hook/watcher tests; expect PASS.
+- [x] Write failing tests for hook timeout/failure isolation, token environment, and watcher change detection.
+- [x] Run hook/watcher tests; expect import failure.
+- [x] Migrate active legacy hooks, patch imports away from Kitty-owned modules, and move pacman/Waywallen support files.
+- [x] Implement watcher using `inotifywait`, `flock`, and the last-accent cache.
+- [x] Run hook/watcher tests; expect PASS.
 
 ### Task 5: Templates, descriptors, service, and standalone installer
 
