@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import colorsys
+import shutil
+import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
 
@@ -84,6 +87,45 @@ def read_accent(path: Path) -> Accent:
         if parsed is not None:
             return parsed
     return KDE_DEFAULT_ACCENT
+
+
+def read_kde_accent(path: Path, environ: Mapping[str, str]) -> Accent:
+    """Lee el acento con ``kreadconfig6`` y cae al parser si no responde."""
+    binary = shutil.which("kreadconfig6", path=environ.get("PATH", ""))
+    if binary is not None:
+        try:
+            process = subprocess.run(  # noqa: S603
+                [
+                    binary,
+                    "--file",
+                    str(path),
+                    "--group",
+                    "General",
+                    "--key",
+                    "AccentColor",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+                env=dict(environ),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            process = None
+        if process is not None:
+            parsed = _parse_rgb(process.stdout.strip())
+            if parsed is not None:
+                return parsed
+    return read_accent(path)
+
+
+def read_explicit_accent(path: Path) -> Accent | None:
+    """Lee ``AccentColor`` y devuelve ``None`` si no está definido."""
+    values = _read_kde_values(path)
+    raw = values.get(("General", "AccentColor"))
+    if raw is None:
+        return None
+    return _parse_rgb(raw)
 
 
 def accent_to_hex(accent: Accent) -> str:
