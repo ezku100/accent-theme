@@ -1,0 +1,3 @@
+name = "konsole-matugen"
+input_path = "~/.config/accent-theme/templates/konsole/konsole-matugen.colorscheme"
+output_path = "~/.local/share/konsole/Dinamico.colorscheme"

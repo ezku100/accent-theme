@@ -1,0 +1,3 @@
+name = "kitty-matugen"
+input_path = "~/.config/accent-theme/templates/kitty/kitty-matugen.conf"
+output_path = "~/.config/kitty/theme.conf"

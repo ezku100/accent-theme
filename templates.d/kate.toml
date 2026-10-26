@@ -1,0 +1,3 @@
+name = "kate-matugen"
+input_path = "~/.config/accent-theme/templates/kate/kate-matugen.theme"
+output_path = "~/.local/share/org.kde.syntax-highlighting/themes/dinamico.theme"

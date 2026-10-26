@@ -1,0 +1,3 @@
+name = "steam-matugen"
+input_path = "~/.config/accent-theme/templates/steam/steam-matugen.css"
+output_path = "~/.local/share/Steam/millennium/themes/Material-Theme/css/main/colors/matugen.css"

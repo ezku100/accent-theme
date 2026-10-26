@@ -1,0 +1,3 @@
+name = "heroic-matugen"
+input_path = "~/.config/accent-theme/templates/heroic/heroic-matugen.css"
+output_path = "~/.config/heroic/themes/dinamico.css"

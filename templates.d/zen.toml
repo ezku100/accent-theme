@@ -1,0 +1,3 @@
+name = "zen-matugen"
+input_path = "~/.config/accent-theme/templates/zen/zen-matugen.css"
+output_path = "~/.cache/matugen-zen-kde-accent.css"
