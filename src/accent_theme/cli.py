@@ -12,7 +12,16 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
-from accent_theme.accent import accent_to_hex, read_accent
+from accent_theme.accent import accent_to_hex, read_kde_accent
+from accent_theme.hooks import (
+    build_hook_environment,
+    discover_hooks,
+    format_results,
+    resolve_hooks_dir,
+    resolve_support_dir,
+    run_hooks,
+)
+from accent_theme.live import LivePaths, apply_live_integrations
 from accent_theme.matugen import (
     MatugenError,
     find_matugen,
@@ -25,11 +34,20 @@ from accent_theme.registry import (
     parse_descriptor,
     rebuild_config,
 )
+from accent_theme.watcher import (
+    DEFAULT_GENERATE_COMMAND,
+    Watcher,
+    WatcherError,
+    WatcherPaths,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 APP_NAME_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+WAYWALLEN_CONFIG_RELATIVE: Final = (
+    ".var/app/org.waywallen.waywallen/config/waywallen/config.toml"
+)
 
 
 class CliError(RuntimeError):
@@ -70,6 +88,11 @@ class CliError(RuntimeError):
         """Construye el error de opción sin valor."""
         return cls(f"falta el valor de {option}")
 
+    @classmethod
+    def unknown_command(cls, command: str) -> CliError:
+        """Construye el error de comando no soportado."""
+        return cls(f"comando desconocido: {command}")
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -107,6 +130,11 @@ def _build_parser() -> argparse.ArgumentParser:
     _ = subparsers.add_parser(
         "doctor",
         help="comprueba dependencias, registro y outputs",
+    )
+
+    _ = subparsers.add_parser(
+        "watch",
+        help="vigila AccentColor y regenera la paleta cuando cambia",
     )
     return parser
 
@@ -223,7 +251,7 @@ def _handle_generate(
         registration.output_path.parent.mkdir(parents=True, exist_ok=True)
 
     kdeglobals = paths.config_home.parent / "kdeglobals"
-    accent = accent_to_hex(read_accent(kdeglobals))
+    accent = accent_to_hex(read_kde_accent(kdeglobals, environ))
     tokens = invoke_matugen(binary, accent, paths.matugen_config)
     missing_outputs = [
         str(registration.output_path)
@@ -232,9 +260,68 @@ def _handle_generate(
     ]
     if missing_outputs:
         raise CliError.missing_outputs(missing_outputs)
+
+    hook_results = run_hooks(
+        discover_hooks(resolve_hooks_dir(environ)),
+        build_hook_environment(tokens, environ),
+    )
+    live_results = apply_live_integrations(
+        LivePaths.from_environment(environ),
+        accent,
+        environ,
+    )
+    failed_hooks = [result for result in hook_results if not result.succeeded]
+    failed_live = [result for result in live_results if result.status == "failed"]
+    for result in failed_hooks:
+        _ = sys.stderr.write(f"hook fallido {result.name}: {result.stderr}\n")
+    for result in failed_live:
+        _ = sys.stderr.write(f"recarga fallida {result.app}: {result.detail}\n")
+
     _ = sys.stdout.write(
         f"paleta generada con {accent}; {len(tokens.colors)} roles disponibles\n"
     )
+    _ = sys.stdout.write(f"hooks: {format_results(hook_results)}\n")
+    _ = sys.stdout.write(
+        "recargas: "
+        + "; ".join(f"{result.app}: {result.status}" for result in live_results)
+        + "\n"
+    )
+    return 0
+
+
+def _watcher_paths(paths: ThemePaths) -> WatcherPaths:
+    """Construye las rutas que vigila el watcher."""
+    waywallen = paths.home / WAYWALLEN_CONFIG_RELATIVE
+    return WatcherPaths(
+        kdeglobals=paths.config_home.parent / "kdeglobals",
+        cache_path=paths.cache_home / "last-watch-accent",
+        lock_path=paths.cache_home / "feeder.lock",
+        waywallen_config=waywallen if waywallen.is_file() else None,
+    )
+
+
+def _derive_command(environ: Mapping[str, str]) -> tuple[str, ...] | None:
+    """Construye el comando que deriva el acento desde Waywallen."""
+    driver = resolve_support_dir(environ) / "derive_waywallen_accent.py"
+    if not driver.is_file():
+        return None
+    return (sys.executable, str(driver))
+
+
+def _handle_watch(
+    paths: ThemePaths,
+    environ: Mapping[str, str],
+) -> int:
+    watcher = Watcher(
+        paths=_watcher_paths(paths),
+        environ=environ,
+        generate_command=DEFAULT_GENERATE_COMMAND,
+        derive_command=_derive_command(environ),
+    )
+    try:
+        _ = watcher.watch()
+    except WatcherError as error:
+        raise CliError(str(error)) from error
     return 0
 
 
@@ -282,6 +369,30 @@ def _option_value(arguments: Sequence[str], option: str) -> str:
     raise CliError.missing_option_value(option)
 
 
+def _dispatch(
+    command: str,
+    argument_list: Sequence[str],
+    paths: ThemePaths,
+    environ: Mapping[str, str],
+) -> int:
+    """Ejecuta el subcomando solicitado."""
+    match command:
+        case "generate":
+            return _handle_generate(paths, environ)
+        case "watch":
+            return _handle_watch(paths, environ)
+        case "doctor":
+            return _handle_doctor(paths, environ)
+        case "rebuild-config":
+            return _handle_rebuild_config(paths)
+        case "register":
+            app = _option_value(argument_list, "--app")
+            descriptor = Path(_option_value(argument_list, "--descriptor"))
+            return _handle_register(paths, app, descriptor)
+        case _:
+            raise CliError.unknown_command(command)
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -298,15 +409,7 @@ def main(
     paths = ThemePaths.from_environment(effective_environ)
     command = argument_list[0]
     try:
-        if command == "generate":
-            return _handle_generate(paths, effective_environ)
-        if command == "doctor":
-            return _handle_doctor(paths, effective_environ)
-        if command == "rebuild-config":
-            return _handle_rebuild_config(paths)
-        app = _option_value(argument_list, "--app")
-        descriptor = Path(_option_value(argument_list, "--descriptor"))
-        return _handle_register(paths, app, descriptor)
+        return _dispatch(command, argument_list, paths, effective_environ)
     except (CliError, MatugenError, RegistryError, OSError) as error:
         _ = sys.stderr.write(f"accent-theme: {error}\n")
         return 1

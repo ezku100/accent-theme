@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import stat
+import sys
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -26,6 +28,20 @@ output_path = "~/.cache/caparazon/colors.json"
         encoding="utf-8",
     )
     return descriptor
+
+
+def make_fake_matugen(directory: Path, payload: str) -> Path:
+    """Crea un binario Matugen falso que escribe el payload JSON."""
+    binary = directory / "matugen"
+    _ = binary.write_text(
+        f"""#!{sys.executable}
+import sys
+print({payload!r})
+""",
+        encoding="utf-8",
+    )
+    binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+    return binary
 
 
 def test_cli_register_installs_template_descriptor_and_config(tmp_path: Path) -> None:
@@ -98,6 +114,162 @@ def test_cli_generate_reports_missing_matugen(tmp_path: Path) -> None:
 def test_cli_doctor_reports_missing_matugen(tmp_path: Path) -> None:
     exit_code = main(
         ["doctor"],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    )
+
+    assert exit_code == 1
+
+
+def test_cli_generate_runs_hooks_with_token_environment(tmp_path: Path) -> None:
+    descriptor = write_registration_source(tmp_path)
+    assert main(
+        [
+            "register",
+            "--app",
+            "caparazon-shell",
+            "--descriptor",
+            str(descriptor),
+        ],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    ) == 0
+
+    payload = json.dumps(
+        {
+            "colors": {
+                role: {"dark": {"color": "#123456"}}
+                for role in (
+                    "surface",
+                    "surface_container_lowest",
+                    "surface_container_low",
+                    "surface_container",
+                    "surface_container_high",
+                    "surface_container_highest",
+                    "on_surface",
+                    "on_surface_variant",
+                    "outline",
+                    "outline_variant",
+                    "primary",
+                    "on_primary",
+                    "secondary",
+                    "tertiary",
+                    "error",
+                    "error_container",
+                    "on_error_container",
+                )
+            }
+        }
+    )
+    binaries = tmp_path / "bin"
+    binaries.mkdir(parents=True)
+    _ = make_fake_matugen(binaries, payload)
+    output = tmp_path / ".cache" / "caparazon" / "colors.json"
+    _ = output.parent.mkdir(parents=True, exist_ok=True)
+    _ = output.write_text("{}\n", encoding="utf-8")
+
+    hook_marker = tmp_path / "hook.txt"
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    hook = hooks_dir / "echo_hook.py"
+    _ = hook.write_text(
+        "\n".join(
+            [
+                "import os",
+                f"with open({str(hook_marker)!r}, 'w', encoding='utf-8') as h:",
+                "    h.write(os.environ['MATUGEN_ACCENT'] + '|'",
+                "             + os.environ['MATUGEN_PRIMARY'])",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        ["generate"],
+        environ={
+            "HOME": str(tmp_path),
+            "PATH": str(binaries),
+            "MATUGEN": str(binaries / "matugen"),
+            "ACCENT_THEME_HOOKS_DIR": str(hooks_dir),
+        },
+    )
+
+    assert exit_code == 0
+    assert hook_marker.read_text(encoding="utf-8") == "#123456|#123456"
+
+
+def test_cli_generate_keeps_going_when_a_hook_fails(tmp_path: Path) -> None:
+    descriptor = write_registration_source(tmp_path)
+    assert main(
+        [
+            "register",
+            "--app",
+            "caparazon-shell",
+            "--descriptor",
+            str(descriptor),
+        ],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    ) == 0
+
+    payload = json.dumps(
+        {
+            "colors": {
+                role: {"dark": {"color": "#123456"}}
+                for role in (
+                    "surface",
+                    "surface_container_lowest",
+                    "surface_container_low",
+                    "surface_container",
+                    "surface_container_high",
+                    "surface_container_highest",
+                    "on_surface",
+                    "on_surface_variant",
+                    "outline",
+                    "outline_variant",
+                    "primary",
+                    "on_primary",
+                    "secondary",
+                    "tertiary",
+                    "error",
+                    "error_container",
+                    "on_error_container",
+                )
+            }
+        }
+    )
+    binaries = tmp_path / "bin"
+    binaries.mkdir(parents=True)
+    _ = make_fake_matugen(binaries, payload)
+    output = tmp_path / ".cache" / "caparazon" / "colors.json"
+    _ = output.parent.mkdir(parents=True, exist_ok=True)
+    _ = output.write_text("{}\n", encoding="utf-8")
+
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    failing = hooks_dir / "aaa_falla.py"
+    _ = failing.write_text("raise SystemExit(2)\n", encoding="utf-8")
+    marker = tmp_path / "ok.txt"
+    working = hooks_dir / "zzz_funciona.py"
+    _ = working.write_text(
+        f"open({str(marker)!r}, 'w', encoding='utf-8').write('ok')\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        ["generate"],
+        environ={
+            "HOME": str(tmp_path),
+            "PATH": str(binaries),
+            "MATUGEN": str(binaries / "matugen"),
+            "ACCENT_THEME_HOOKS_DIR": str(hooks_dir),
+        },
+    )
+
+    assert exit_code == 0
+    assert marker.read_text(encoding="utf-8") == "ok"
+
+
+def test_cli_watch_reports_missing_inotifywait(tmp_path: Path) -> None:
+    exit_code = main(
+        ["watch"],
         environ={"HOME": str(tmp_path), "PATH": ""},
     )
 
