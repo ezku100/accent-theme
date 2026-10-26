@@ -18,8 +18,15 @@ dev = [
 typeCheckingMode = "all"
 pythonVersion = "3.11"
 pythonPlatform = "Linux"
-include = ["src", "tests"]
-exclude = ["**/__pycache__", "**/.venv", "**/build", "**/dist"]
+include = ["src", "tests", "hooks/bridge.py"]
+exclude = [
+    "**/__pycache__",
+    "**/.venv",
+    "**/build",
+    "**/dist",
+    "hooks/active",
+    "hooks/support",
+]
 reportUnusedCallResult = "warning"
 reportUnnecessaryTypeIgnoreComment = "error"
 reportUnusedVariable = "error"
@@ -30,6 +37,7 @@ reportPrivateUsage = "error"
 target-version = "py311"
 line-length = 88
 src = ["src", "tests"]
+extend-exclude = ["hooks/active", "hooks/support"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -47,6 +55,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"hooks/bridge.py" = ["INP001"]
 "tests/**/*.py" = [
     "S101",
     "ARG",
