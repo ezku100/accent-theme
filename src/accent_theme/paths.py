@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 class ThemePaths:
     """Rutas de configuración, datos y caché del motor."""
 
+    home: Path
     config_home: Path
     data_home: Path
     cache_home: Path
@@ -33,6 +34,7 @@ class ThemePaths:
 
         config_home = xdg_config / "accent-theme"
         return cls(
+            home=home,
             config_home=config_home,
             data_home=xdg_data / "accent-theme",
             cache_home=xdg_cache / "accent-theme",
