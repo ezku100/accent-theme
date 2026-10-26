@@ -99,7 +99,7 @@ class TemplateRegistration:
     output_path: Path
 
 
-def _parse_descriptor(path: Path) -> dict[str, str]:
+def parse_descriptor(path: Path) -> dict[str, str]:
     """Parsea el subconjunto TOML soportado por los descriptores."""
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -138,7 +138,8 @@ def _parse_descriptor(path: Path) -> dict[str, str]:
     return values
 
 
-def _expand_home(raw_path: str, home: Path) -> Path:
+def expand_home_path(raw_path: str, home: Path) -> Path:
+    """Resuelve ``~`` y rutas relativas contra el HOME efectivo."""
     if raw_path == "~":
         path = home
     elif raw_path.startswith("~/"):
@@ -166,14 +167,14 @@ def load_registrations(paths: ThemePaths) -> tuple[TemplateRegistration, ...]:
     registrations: list[TemplateRegistration] = []
     names: dict[str, Path] = {}
     for descriptor_path in sorted(paths.templates_d_dir.glob("*.toml")):
-        values = _parse_descriptor(descriptor_path)
+        values = parse_descriptor(descriptor_path)
         name = values["name"]
         if TEMPLATE_NAME_PATTERN.fullmatch(name) is None:
             raise RegistryError.invalid_name(descriptor_path, name)
         if name in names:
             raise RegistryError.duplicate_name(descriptor_path, name, names[name])
-        input_path = _expand_home(values["input_path"], paths.home)
-        output_path = _expand_home(values["output_path"], paths.home)
+        input_path = expand_home_path(values["input_path"], paths.home)
+        output_path = expand_home_path(values["output_path"], paths.home)
         if not input_path.is_file():
             raise RegistryError.missing_input(descriptor_path, input_path)
         if not _is_within(output_path, paths.home):
