@@ -117,11 +117,11 @@
 **Interfaces:**
 - Produces: `install.sh [instalar|desinstalar]`, `~/.local/bin/accent-theme`, `accent-theme.service`, base registrations, and legacy rollback.
 
-- [ ] Write failing contract tests for service name/path, base descriptors, template parity, and install/uninstall actions.
-- [ ] Run the contract test; expect missing files.
-- [ ] Copy and validate the eight Matugen templates; create one descriptor per template.
-- [ ] Implement idempotent installation, dependency detection, service migration, generation, and uninstall rollback.
-- [ ] Run contract tests; expect PASS.
+- [x] Write failing contract tests for service name/path, base descriptors, template parity, and install/uninstall actions.
+- [x] Run the contract test; expect missing files.
+- [x] Copy and validate the eight Matugen templates; create one descriptor per template.
+- [x] Implement idempotent installation, dependency detection, service migration, generation, and uninstall rollback.
+- [x] Run contract tests; expect PASS.
 
 ### Task 6: Caparazón template and bootstrap installer
 
