@@ -152,10 +152,10 @@
 **Interfaces:**
 - Produces: clean Git histories, a public `accent-theme` repository, updated Caparazón remote, and a running migrated service.
 
-- [ ] Run `uv run ruff check .`, `uv run basedpyright`, and `uv run pytest`; expect all green.
-- [ ] Run shell syntax checks and isolated smoke installs under temporary HOME directories.
-- [ ] Back up active theme config/service files with timestamps.
-- [ ] Install the local engine, register Caparazón, disable the legacy service, enable/start `accent-theme.service`, and regenerate the palette.
-- [ ] Verify `systemctl --user is-active/is-enabled accent-theme.service`, `accent-theme doctor`, `colors.json`, `systemctl --failed`, and a deliberate accent-change smoke test with rollback of the accent value.
-- [ ] Inspect Git status/diff/log in both repos; create atomic commits and push them.
-- [ ] Create the public `ezku100/accent-theme` GitHub repository and verify both remote URLs and default branches.
+- [x] Run `uv run ruff check .`, `uv run basedpyright`, and `uv run pytest`; expect all green.
+- [x] Run shell syntax checks and isolated smoke installs under temporary HOME directories.
+- [x] Back up active theme config/service files with timestamps.
+- [x] Install the local engine, register Caparazón, disable the legacy service, enable/start `accent-theme.service`, and regenerate the palette.
+- [x] Verify `systemctl --user is-active/is-enabled accent-theme.service`, `accent-theme doctor`, `colors.json`, `systemctl --failed`, and a deliberate accent-change smoke test with rollback of the accent value.
+- [x] Inspect Git status/diff/log in both repos; create atomic commits and push them.
+- [x] Create the public `ezku100/accent-theme` GitHub repository and verify both remote URLs and default branches.
