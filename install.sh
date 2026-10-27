@@ -186,7 +186,7 @@ remove_base_registrations() {
   local app
   for app in "${BASE_APPS[@]}"; do
     rm -f "$DESCRIPTORS_DIR/$app.toml"
-    rm -rf "$TEMPLATES_DIR/$app"
+    rm -rf "${TEMPLATES_DIR:?}/$app"
   done
 }
 
