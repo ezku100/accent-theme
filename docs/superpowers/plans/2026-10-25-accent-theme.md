@@ -137,11 +137,11 @@
 - Consumes: `accent-theme register --app caparazon-shell --descriptor <path>`.
 - Produces: a complete Caparazón install with validated `~/.cache/caparazon/colors.json`.
 
-- [ ] Write failing contract tests for the owned template, descriptor, bootstrap URL, validation keys, and visible file-read errors.
-- [ ] Run the contract test; expect missing integration files.
-- [ ] Add the Quickshell template/descriptor and wire clone/pull, dependency checks, registration, generation, and validation into `install.sh`.
-- [ ] Change `printErrors` to `true` while retaining the fallback palette.
-- [ ] Run the contract test; expect PASS.
+- [x] Write failing contract tests for the owned template, descriptor, bootstrap URL, validation keys, and visible file-read errors.
+- [x] Run the contract test; expect missing integration files.
+- [x] Add the Quickshell template/descriptor and wire clone/pull, dependency checks, registration, generation, and validation into `install.sh`.
+- [x] Change `printErrors` to `true` while retaining the fallback palette.
+- [x] Run the contract test; expect PASS.
 
 ### Task 7: Verification, migration, and publication
 
