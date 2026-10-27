@@ -97,11 +97,11 @@
 - Consumes: `MatugenTokens` and `MATUGEN_*` environment variables.
 - Produces: isolated hook execution, Waywallen fallback handling, and `watch` command for systemd.
 
-- [ ] Write failing tests for hook timeout/failure isolation, token environment, and watcher change detection.
-- [ ] Run hook/watcher tests; expect import failure.
-- [ ] Migrate active legacy hooks, patch imports away from Kitty-owned modules, and move pacman/Waywallen support files.
-- [ ] Implement watcher using `inotifywait`, `flock`, and the last-accent cache.
-- [ ] Run hook/watcher tests; expect PASS.
+- [x] Write failing tests for hook timeout/failure isolation, token environment, and watcher change detection.
+- [x] Run hook/watcher tests; expect import failure.
+- [x] Migrate active legacy hooks, patch imports away from Kitty-owned modules, and move pacman/Waywallen support files.
+- [x] Implement watcher using `inotifywait`, `flock`, and the last-accent cache.
+- [x] Run hook/watcher tests; expect PASS.
 
 ### Task 5: Templates, descriptors, service, and standalone installer
 
@@ -117,11 +117,11 @@
 **Interfaces:**
 - Produces: `install.sh [instalar|desinstalar]`, `~/.local/bin/accent-theme`, `accent-theme.service`, base registrations, and legacy rollback.
 
-- [ ] Write failing contract tests for service name/path, base descriptors, template parity, and install/uninstall actions.
-- [ ] Run the contract test; expect missing files.
-- [ ] Copy and validate the eight Matugen templates; create one descriptor per template.
-- [ ] Implement idempotent installation, dependency detection, service migration, generation, and uninstall rollback.
-- [ ] Run contract tests; expect PASS.
+- [x] Write failing contract tests for service name/path, base descriptors, template parity, and install/uninstall actions.
+- [x] Run the contract test; expect missing files.
+- [x] Copy and validate the eight Matugen templates; create one descriptor per template.
+- [x] Implement idempotent installation, dependency detection, service migration, generation, and uninstall rollback.
+- [x] Run contract tests; expect PASS.
 
 ### Task 6: Caparazón template and bootstrap installer
 
@@ -137,11 +137,11 @@
 - Consumes: `accent-theme register --app caparazon-shell --descriptor <path>`.
 - Produces: a complete Caparazón install with validated `~/.cache/caparazon/colors.json`.
 
-- [ ] Write failing contract tests for the owned template, descriptor, bootstrap URL, validation keys, and visible file-read errors.
-- [ ] Run the contract test; expect missing integration files.
-- [ ] Add the Quickshell template/descriptor and wire clone/pull, dependency checks, registration, generation, and validation into `install.sh`.
-- [ ] Change `printErrors` to `true` while retaining the fallback palette.
-- [ ] Run the contract test; expect PASS.
+- [x] Write failing contract tests for the owned template, descriptor, bootstrap URL, validation keys, and visible file-read errors.
+- [x] Run the contract test; expect missing integration files.
+- [x] Add the Quickshell template/descriptor and wire clone/pull, dependency checks, registration, generation, and validation into `install.sh`.
+- [x] Change `printErrors` to `true` while retaining the fallback palette.
+- [x] Run the contract test; expect PASS.
 
 ### Task 7: Verification, migration, and publication
 

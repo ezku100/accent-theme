@@ -1,0 +1,3 @@
+name = "ghostty-matugen"
+input_path = "~/.config/accent-theme/templates/ghostty/ghostty-matugen"
+output_path = "~/.config/ghostty/theme"

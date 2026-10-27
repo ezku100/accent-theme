@@ -1,0 +1,14 @@
+/* Generado por matugen (semilla: accent KDE) — no editar a mano. accent_to_matugen.py lo copia a cada perfil. */
+:root {
+  --zen-primary-color: {{colors.primary.dark.hex}} !important;
+  --zen-primary-color-light: {{colors.primary_fixed.dark.hex}} !important;
+  --zen-primary-color-dark: {{colors.primary_container.dark.hex}} !important;
+  --mod-sameerasw-zen_transparency_color: {{colors.surface_container.dark.hex}}cc !important;
+}
+/* Botones/links/enlaces activos y foco */
+a, .urlbarView-result-title-match, textbox[focused="true"] {
+  --focus-outline-color: {{colors.primary.dark.hex}} !important;
+}
+tab[selected="true"] .tab-background {
+  --tab-selected-bgcolor: {{colors.primary_container.dark.hex}}44 !important;
+}

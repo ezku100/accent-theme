@@ -1,0 +1,23 @@
+# Generado por matugen (semilla: accent KDE) — no editar a mano
+background = {{colors.background.dark.hex}}
+foreground = {{colors.on_background.dark.hex}}
+cursor-color = {{colors.primary.dark.hex}}
+cursor-text = {{colors.on_primary.dark.hex}}
+selection-background = {{colors.primary.dark.hex}}
+selection-foreground = {{colors.on_primary.dark.hex}}
+palette = 0={{colors.surface_container_lowest.dark.hex}}
+palette = 1={{colors.on_secondary.dark.hex}}
+palette = 2={{colors.secondary_container.dark.hex}}
+palette = 3={{colors.surface_variant.dark.hex}}
+palette = 4={{colors.primary_container.dark.hex}}
+palette = 5={{colors.secondary.dark.hex}}
+palette = 6={{colors.primary.dark.hex}}
+palette = 7={{colors.on_surface.dark.hex}}
+palette = 8={{colors.surface_container_highest.dark.hex}}
+palette = 9={{colors.outline.dark.hex}}
+palette = 10={{colors.primary_container.dark.hex}}
+palette = 11={{colors.secondary.dark.hex}}
+palette = 12={{colors.primary.dark.hex}}
+palette = 13={{colors.primary_fixed.dark.hex}}
+palette = 14={{colors.on_secondary_container.dark.hex}}
+palette = 15={{colors.on_primary_container.dark.hex}}

@@ -1,0 +1,12 @@
+# Fragmento generado por matugen — lo inyecta accent_to_matugen.py en [color] de cava/config
+background = '{{colors.background.dark.hex}}'
+foreground = '{{colors.primary.dark.hex}}'
+gradient = 1
+gradient_color_1 = '{{base16.base01.dark.hex}}'
+gradient_color_2 = '{{base16.base02.dark.hex}}'
+gradient_color_3 = '{{base16.base03.dark.hex}}'
+gradient_color_4 = '{{base16.base05.dark.hex}}'
+gradient_color_5 = '{{base16.base06.dark.hex}}'
+gradient_color_6 = '{{base16.base07.dark.hex}}'
+gradient_color_7 = '{{colors.primary.dark.hex}}'
+gradient_color_8 = '{{colors.primary_fixed.dark.hex}}'

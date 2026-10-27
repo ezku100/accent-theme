@@ -1,0 +1,52 @@
+/* Generado por matugen (semilla: accent KDE) — no editar a mano */
+body.dinamico {
+  --accent: {{colors.primary.dark.hex}};
+  --accent-overlay: {{colors.secondary.dark.hex}};
+  --navbar-accent: {{colors.primary.dark.hex}};
+
+  --background: {{colors.surface_container.dark.hex}};
+  --body-background: {{colors.background.dark.hex}};
+  --background-darker: {{colors.surface_dim.dark.hex}};
+  --current-background: {{colors.background.dark.hex}};
+  --navbar-background: {{colors.surface_container.dark.hex}};
+  --navbar-active: {{colors.primary.dark.hex}};
+  --navbar-active-background: {{colors.primary_container.dark.hex}};
+  --gradient-body-background: linear-gradient(
+    90deg,
+    {{colors.background.dark.hex}} -32px,
+    {{colors.background.dark.hex}} 64px,
+    {{colors.background.dark.hex}} 100%
+  );
+  --input-background: {{colors.surface_container_high.dark.hex}};
+  --modal-background: {{colors.surface_container.dark.hex}};
+  --modal-border: {{colors.outline_variant.dark.hex}};
+  --search-bar-background: {{colors.surface_container_high.dark.hex}};
+  --search-bar-border: {{colors.outline_variant.dark.hex}};
+  --divider: {{colors.surface_variant.dark.hex}};
+  --icons-background: {{colors.surface_container_high.dark.hex}};
+
+  --primary: {{colors.primary.dark.hex}};
+  --primary-hover: {{colors.secondary.dark.hex}};
+  --link-highlight: {{colors.secondary.dark.hex}};
+  --button-stroke: {{colors.primary.dark.hex}};
+  --secondary-button: {{colors.primary.dark.hex}};
+  --play-button: {{colors.primary.dark.hex}};
+  --install-button: {{colors.primary.dark.hex}};
+  --download-button: {{colors.primary.dark.hex}};
+  --download-button-overlay: {{colors.secondary.dark.hex}};
+
+  --text-default: {{colors.on_surface.dark.hex}};
+  --text-secondary: {{colors.on_surface_variant.dark.hex}};
+  --text-title: {{colors.on_surface.dark.hex}};
+  --text-hover: {{colors.primary.dark.hex}};
+  --navbar-inactive: {{colors.on_surface_variant.dark.hex}};
+
+  --action-icon: {{colors.on_surface.dark.hex}};
+  --action-icon-hover: {{colors.primary.dark.hex}};
+  --action-icon-active: {{colors.primary.dark.hex}};
+
+  --osk-background: {{colors.surface_dim.dark.hex}};
+  --osk-button-background: {{colors.surface_container_high.dark.hex}};
+  --osk-button-border: {{colors.outline_variant.dark.hex}};
+  --controller-hints-background: transparent;
+}
