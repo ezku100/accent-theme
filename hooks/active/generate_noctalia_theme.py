@@ -42,7 +42,9 @@ def matugen_tokens(accent):
     motor accent-theme y reescribiendo la paleta de forma no atómica.
     """
     with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as handle:
-        handle.write("[config]\nversion_check = false\ncaching = false\n")
+        handle.write(
+            "[config]\nversion_check = false\ncaching = false\n\n[templates]\n"
+        )
         config_path = handle.name
     try:
         proc = subprocess.run(
