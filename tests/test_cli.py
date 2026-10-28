@@ -30,12 +30,43 @@ output_path = "~/.cache/caparazon/colors.json"
     return descriptor
 
 
+def matugen_payload() -> str:
+    """Payload role-first válido que exige ``parse_matugen_json``."""
+    roles = (
+        "surface",
+        "surface_container_lowest",
+        "surface_container_low",
+        "surface_container",
+        "surface_container_high",
+        "surface_container_highest",
+        "on_surface",
+        "on_surface_variant",
+        "outline",
+        "outline_variant",
+        "primary",
+        "on_primary",
+        "secondary",
+        "tertiary",
+        "error",
+        "error_container",
+        "on_error_container",
+    )
+    return json.dumps(
+        {"colors": {role: {"dark": {"color": "#123456"}} for role in roles}}
+    )
+
+
 def make_fake_matugen(directory: Path, payload: str) -> Path:
-    """Crea un binario Matugen falso que escribe el payload JSON."""
+    """Crea un binario Matugen falso que escribe el payload en cada salida."""
     binary = directory / "matugen"
     _ = binary.write_text(
         f"""#!{sys.executable}
-import sys
+import pathlib, sys, tomllib
+config = tomllib.loads(pathlib.Path(sys.argv[sys.argv.index("-c") + 1]).read_text())
+for template in config.get("templates", {{}}).values():
+    output = pathlib.Path(template["output_path"])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text({payload!r})
 print({payload!r})
 """,
         encoding="utf-8",
@@ -76,7 +107,7 @@ def test_cli_register_installs_template_descriptor_and_config(tmp_path: Path) ->
         installed_template
     )
     assert parsed["templates"]["quickshell-matugen"]["output_path"] == str(
-        tmp_path / ".cache" / "caparazon" / "colors.json"
+        tmp_path / ".cache" / "caparazon" / "colors.staging.json"
     )
 
 
@@ -133,32 +164,7 @@ def test_cli_generate_runs_hooks_with_token_environment(tmp_path: Path) -> None:
         environ={"HOME": str(tmp_path), "PATH": ""},
     ) == 0
 
-    payload = json.dumps(
-        {
-            "colors": {
-                role: {"dark": {"color": "#123456"}}
-                for role in (
-                    "surface",
-                    "surface_container_lowest",
-                    "surface_container_low",
-                    "surface_container",
-                    "surface_container_high",
-                    "surface_container_highest",
-                    "on_surface",
-                    "on_surface_variant",
-                    "outline",
-                    "outline_variant",
-                    "primary",
-                    "on_primary",
-                    "secondary",
-                    "tertiary",
-                    "error",
-                    "error_container",
-                    "on_error_container",
-                )
-            }
-        }
-    )
+    payload = matugen_payload()
     binaries = tmp_path / "bin"
     binaries.mkdir(parents=True)
     _ = make_fake_matugen(binaries, payload)
@@ -209,32 +215,7 @@ def test_cli_generate_keeps_going_when_a_hook_fails(tmp_path: Path) -> None:
         environ={"HOME": str(tmp_path), "PATH": ""},
     ) == 0
 
-    payload = json.dumps(
-        {
-            "colors": {
-                role: {"dark": {"color": "#123456"}}
-                for role in (
-                    "surface",
-                    "surface_container_lowest",
-                    "surface_container_low",
-                    "surface_container",
-                    "surface_container_high",
-                    "surface_container_highest",
-                    "on_surface",
-                    "on_surface_variant",
-                    "outline",
-                    "outline_variant",
-                    "primary",
-                    "on_primary",
-                    "secondary",
-                    "tertiary",
-                    "error",
-                    "error_container",
-                    "on_error_container",
-                )
-            }
-        }
-    )
+    payload = matugen_payload()
     binaries = tmp_path / "bin"
     binaries.mkdir(parents=True)
     _ = make_fake_matugen(binaries, payload)
@@ -274,3 +255,39 @@ def test_cli_watch_reports_missing_inotifywait(tmp_path: Path) -> None:
     )
 
     assert exit_code == 1
+
+
+def test_cli_generate_publishes_the_output_atomically(tmp_path: Path) -> None:
+    descriptor = write_registration_source(tmp_path)
+    assert main(
+        [
+            "register",
+            "--app",
+            "caparazon-shell",
+            "--descriptor",
+            str(descriptor),
+        ],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    ) == 0
+
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    payload = matugen_payload()
+    _ = make_fake_matugen(binaries, payload)
+    output = tmp_path / ".cache" / "caparazon" / "colors.json"
+    staging = output.parent / "colors.staging.json"
+
+    exit_code = main(
+        ["generate"],
+        environ={
+            "HOME": str(tmp_path),
+            "PATH": str(binaries),
+            "MATUGEN": str(binaries / "matugen"),
+            "ACCENT_THEME_HOOKS_DIR": str(tmp_path / "hooks"),
+        },
+    )
+
+    assert exit_code == 0
+    assert output.is_file()
+    assert output.read_text(encoding="utf-8").strip() == payload.strip()
+    assert not staging.exists()

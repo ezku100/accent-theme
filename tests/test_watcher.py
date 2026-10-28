@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import stat
+import time
 from typing import TYPE_CHECKING
 
 from accent_theme.watcher import (
@@ -151,6 +152,21 @@ def test_handle_event_ignores_unrelated_files(tmp_path: Path) -> None:
     assert watcher.handle_event(str(tmp_path / "otro.txt")) == "ignored"
 
 
+def test_is_relevant_only_accepts_watched_files(tmp_path: Path) -> None:
+    watcher = make_watcher(
+        tmp_path,
+        environ=make_environment(tmp_path),
+        generate_command=("true",),
+    )
+
+    assert watcher.is_relevant(str(tmp_path / "kdeglobals")) is True
+    assert watcher.is_relevant(str(tmp_path / "waywallen" / "config.toml")) is True
+    assert watcher.is_relevant(str(tmp_path / "kdeglobals.lock")) is False
+    assert watcher.is_relevant(str(tmp_path / "kdeglobals.YzcWHU")) is False
+    assert watcher.is_relevant(str(tmp_path / "#1209961923")) is False
+    assert watcher.is_relevant(str(tmp_path / "otro.txt")) is False
+
+
 def test_handle_event_skips_regeneration_when_accent_unchanged(tmp_path: Path) -> None:
     log = tmp_path / "generate.log"
     make_script(tmp_path / "generate.sh", f"echo generado >> {log}")
@@ -252,3 +268,39 @@ def test_run_processes_events_and_counts_regenerations(tmp_path: Path) -> None:
 
 def test_default_generate_command_targets_the_cli() -> None:
     assert DEFAULT_GENERATE_COMMAND == ("accent-theme", "generate")
+
+
+def test_request_regeneration_collapses_a_burst_into_one_run(tmp_path: Path) -> None:
+    log = tmp_path / "generate.log"
+    make_script(tmp_path / "generate.sh", f"echo generado >> {log}")
+    watcher = make_watcher(
+        tmp_path,
+        environ=make_environment(tmp_path),
+        generate_command=(str(tmp_path / "generate.sh"),),
+    )
+
+    for _ in range(6):
+        watcher.request_regeneration(str(tmp_path / "kdeglobals"))
+
+    assert watcher.wait_idle(timeout=5.0) is True
+    assert log.read_text(encoding="utf-8").splitlines() == ["generado"]
+
+
+def test_accent_change_during_a_run_is_regenerated(tmp_path: Path) -> None:
+    log = tmp_path / "generate.log"
+    make_script(tmp_path / "generate.sh", f"sleep 0.3; echo generado >> {log}")
+    watcher = make_watcher(
+        tmp_path,
+        environ=make_environment(tmp_path),
+        generate_command=(str(tmp_path / "generate.sh"),),
+    )
+
+    watcher.request_regeneration(str(tmp_path / "kdeglobals"))
+    time.sleep(0.4)
+    _ = (tmp_path / "kdeglobals").write_text(
+        "[General]\nAccentColor=255,0,0\n", encoding="utf-8"
+    )
+    watcher.request_regeneration(str(tmp_path / "kdeglobals"))
+
+    assert watcher.wait_idle(timeout=5.0) is True
+    assert watcher.cached_accent() == "#ff0000"

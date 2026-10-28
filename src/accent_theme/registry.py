@@ -98,6 +98,18 @@ class TemplateRegistration:
     input_path: Path
     output_path: Path
 
+    @property
+    def staging_path(self) -> Path:
+        """Ruta temporal vecina a la salida final.
+
+        Matugen escribe de forma no atómica, así que publica en ``staging`` y
+        el motor renombra al final. La extensión se conserva para que Matugen
+        mantenga el formato de salida.
+        """
+        return self.output_path.with_name(
+            f"{self.output_path.stem}.staging{self.output_path.suffix}"
+        )
+
 
 def parse_descriptor(path: Path) -> dict[str, str]:
     """Parsea el subconjunto TOML soportado por los descriptores."""
@@ -207,7 +219,7 @@ def render_matugen_config(registrations: Iterable[TemplateRegistration]) -> str:
                 "",
                 f"[templates.{registration.name}]",
                 f"input_path = {_toml_string(str(registration.input_path))}",
-                f"output_path = {_toml_string(str(registration.output_path))}",
+                f"output_path = {_toml_string(str(registration.staging_path))}",
             )
         )
     return "\n".join(lines) + "\n"

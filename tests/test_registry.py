@@ -183,3 +183,23 @@ def test_render_matugen_config_accepts_empty_registration() -> None:
     assert render_matugen_config(()) == (
         "[config]\nversion_check = false\ncaching = false\n"
     )
+
+
+def test_staging_path_keeps_the_final_extension(tmp_path: Path) -> None:
+    registration = TemplateRegistration(
+        name="caparazon-shell-matugen",
+        input_path=tmp_path / "quickshell-matugen.json",
+        output_path=tmp_path / "colors.json",
+    )
+
+    assert registration.staging_path == tmp_path / "colors.staging.json"
+
+
+def test_staging_path_keeps_non_json_extensions(tmp_path: Path) -> None:
+    registration = TemplateRegistration(
+        name="kitty-matugen",
+        input_path=tmp_path / "kitty-matugen.conf",
+        output_path=tmp_path / "theme.conf",
+    )
+
+    assert registration.staging_path == tmp_path / "theme.staging.conf"

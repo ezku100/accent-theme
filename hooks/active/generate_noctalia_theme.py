@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from bridge import get_accent_rgb, hsv_to_hex, build_palette
@@ -33,12 +34,24 @@ PALETTE_DIRS = [
 
 
 def matugen_tokens(accent):
-    """Corre matugen y devuelve dict token Material -> hex (modo dark)."""
-    proc = subprocess.run(
-        [MATUGEN, "color", "hex", accent, "-t", "scheme-fidelity",
-         "-m", "dark", "-j", "hex"],
-        capture_output=True, text=True, timeout=60,
-    )
+    """Corre matugen y devuelve dict token Material -> hex (modo dark).
+
+    Usa un config propio y vacío: sin `-c`, matugen lee
+    ``~/.config/matugen/config.toml`` y re-renderiza todos los templates
+    globales (incluido colors.json de Caparazón), duplicando el trabajo del
+    motor accent-theme y reescribiendo la paleta de forma no atómica.
+    """
+    with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as handle:
+        handle.write("[config]\nversion_check = false\ncaching = false\n")
+        config_path = handle.name
+    try:
+        proc = subprocess.run(
+            [MATUGEN, "color", "hex", accent, "-c", config_path,
+             "-t", "scheme-fidelity", "-m", "dark", "-j", "hex"],
+            capture_output=True, text=True, timeout=60,
+        )
+    finally:
+        os.unlink(config_path)
     if proc.returncode != 0:
         raise RuntimeError(f"matugen falló: {proc.stderr.strip()[:200]}")
     colors = json.loads(proc.stdout).get("colors", {})

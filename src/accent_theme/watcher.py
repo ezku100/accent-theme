@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 WATCH_EVENTS: Final = "modify,close_write,moved_to"
 LOCK_BUSY_EXIT_CODE: Final = 75
 DEFAULT_GENERATE_COMMAND: Final = ("accent-theme", "generate")
-DEBOUNCE_SECONDS: Final = 0.5
+SETTLE_SECONDS: Final = 0.3
 GENERATE_TIMEOUT_SECONDS: Final = 300.0
 
 
@@ -46,6 +47,15 @@ class WatcherPaths:
     waywallen_config: Path | None = None
 
 
+@dataclass(slots=True)
+class GenerationState:
+    """Estado mutable de la regeneración en curso."""
+
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    pending_path: str | None = None
+    thread: threading.Thread | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class Watcher:
     """Observa ``kdeglobals`` y regenera la paleta cuando cambia el acento."""
@@ -54,6 +64,8 @@ class Watcher:
     environ: Mapping[str, str]
     generate_command: Sequence[str] = DEFAULT_GENERATE_COMMAND
     derive_command: Sequence[str] | None = None
+    settle_seconds: float = SETTLE_SECONDS
+    state: GenerationState = field(default_factory=GenerationState, compare=False)
 
     def current_accent(self) -> str:
         """Devuelve el acento actual de KDE en hexadecimal."""
@@ -139,14 +151,26 @@ class Watcher:
             return "ignored"
         return "derived" if self._run(self.derive_command) == 0 else "failed"
 
+    def is_relevant(self, raw_path: str) -> bool:
+        """Indica si el evento corresponde a un archivo vigilado.
+
+        KDE guarda ``kdeglobals`` de forma atómica y en el mismo directorio
+        deja ``kdeglobals.lock`` y temporales: solo el archivo exacto cuenta.
+        """
+        path = Path(raw_path)
+        if path == self.paths.kdeglobals:
+            return True
+        waywallen = self.paths.waywallen_config
+        return waywallen is not None and path == waywallen
+
     def handle_event(self, raw_path: str) -> str:
         """Procesa un evento de inotify y devuelve la acción realizada."""
+        if not self.is_relevant(raw_path):
+            return "ignored"
         path = Path(raw_path)
         waywallen = self.paths.waywallen_config
         if waywallen is not None and path == waywallen:
             return self._handle_waywallen()
-        if path.name != "kdeglobals":
-            return "ignored"
 
         current = self.current_accent()
         if not self.accent_changed(current):
@@ -168,6 +192,44 @@ class Watcher:
                 regenerated += 1
         return regenerated
 
+    def request_regeneration(self, raw_path: str) -> None:
+        """Pide una regeneración sin bloquear el bucle de eventos.
+
+        Si ya hay una en curso se guarda la ruta pendiente más reciente: la
+        ráfaga de eventos que produce KDE se consolida en una sola pasada.
+        """
+        with self.state.lock:
+            self.state.pending_path = raw_path
+            thread = self.state.thread
+            if thread is not None and thread.is_alive():
+                return
+            thread = threading.Thread(target=self._regeneration_loop, daemon=True)
+            self.state.thread = thread
+        thread.start()
+
+    def wait_idle(self, timeout: float = 5.0) -> bool:
+        """Espera a que termine la regeneración pendiente."""
+        with self.state.lock:
+            thread = self.state.thread
+        if thread is None:
+            return True
+        thread.join(timeout)
+        return not thread.is_alive()
+
+    def _regeneration_loop(self) -> None:
+        """Regenera en segundo plano hasta que no queden peticiones."""
+        while True:
+            time.sleep(self.settle_seconds)
+            with self.state.lock:
+                path = self.state.pending_path
+                self.state.pending_path = None
+            if path is None:
+                return
+            _ = self.handle_event(path)
+            with self.state.lock:
+                if self.state.pending_path is None:
+                    return
+
     def watch(self) -> int:
         """Vigila los directorios configurados hasta recibir una interrupción."""
         process = subprocess.Popen(  # noqa: S603
@@ -183,13 +245,13 @@ class Watcher:
             stream = cast("TextIO", process.stdout)
             for line in stream:
                 event = line.strip()
-                if not event:
+                if not event or not self.is_relevant(event):
                     continue
-                time.sleep(DEBOUNCE_SECONDS)
-                _ = self.handle_event(event)
+                self.request_regeneration(event)
         except KeyboardInterrupt:
             pass
         finally:
+            _ = self.wait_idle(timeout=30.0)
             process.terminate()
             _ = process.wait(timeout=10)
         return 0

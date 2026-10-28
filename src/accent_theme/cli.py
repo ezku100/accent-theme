@@ -253,6 +253,9 @@ def _handle_generate(
     kdeglobals = paths.config_home.parent / "kdeglobals"
     accent = accent_to_hex(read_kde_accent(kdeglobals, environ))
     tokens = invoke_matugen(binary, accent, paths.matugen_config)
+    for registration in registrations:
+        if registration.staging_path.exists():
+            _ = registration.staging_path.replace(registration.output_path)
     missing_outputs = [
         str(registration.output_path)
         for registration in registrations
