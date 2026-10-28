@@ -39,8 +39,8 @@ El instalador:
    `~/.config/matugen/config.toml`).
 5. Instala `~/.config/systemd/user/accent-theme.service`.
 6. Genera un backup fechado en `~/.local/share/accent-theme/backups/`.
-7. Deshabilita `kitty-theme-watch.service` **sin borrarlo** y habilita
-   `accent-theme.service`.
+7. Habilita `accent-theme.service` y, si aún existe, deshabilita
+   `kitty-theme-watch.service` **sin borrarlo**.
 
 Es idempotente: puedes ejecutarlo las veces que quieras.
 
@@ -50,8 +50,9 @@ Es idempotente: puedes ejecutarlo las veces que quieras.
 ./install.sh desinstalar
 ```
 
-Deshabilita `accent-theme.service`, rehabilita `kitty-theme-watch.service` y
-elimina el wrapper y la unit. La configuración heredada nunca se borra.
+Deshabilita `accent-theme.service` y elimina el wrapper y la unit. La
+configuración heredada nunca se borra; si la unidad heredada sigue presente, la
+rehabilita.
 
 ## Uso
 
@@ -96,16 +97,10 @@ El registro valida que el template exista, que el destino esté dentro del
 
 ## Rollback
 
-Si algo no cuadra, vuelve al servicio heredado:
-
-```bash
-systemctl --user disable --now accent-theme.service
-systemctl --user enable --now kitty-theme-watch.service
-```
-
-`kitty-theme-watch.service` y `~/.config/kitty/` se conservan intactos, así que
-el rollback es inmediato. Los backups de la migración están en
-`~/.local/share/accent-theme/backups/`.
+El servicio heredado `kitty-theme-watch.service` ya no existe: el motor
+`accent-theme` es el único que regenera el tema. Cada instalación deja un
+backup en `~/.local/share/accent-theme/backups/` con la unit y la configuración
+del motor; desde ahí puedes restaurar una instalación anterior.
 
 ## Desarrollo
 

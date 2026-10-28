@@ -123,6 +123,21 @@ def install_environment(
     return environ, log
 
 
+def make_legacy_unit(tmp_path: Path) -> Path:
+    """Crea la unit heredada para probar la migración."""
+    unit = (
+        tmp_path
+        / "home"
+        / ".config"
+        / "systemd"
+        / "user"
+        / "kitty-theme-watch.service"
+    )
+    unit.parent.mkdir(parents=True, exist_ok=True)
+    _ = unit.write_text("[Service]\nExecStart=/bin/true\n", encoding="utf-8")
+    return unit
+
+
 def run_installer(
     action: str,
     environ: Mapping[str, str],
@@ -203,6 +218,7 @@ def test_install_prepares_the_engine_and_migrates_the_service(
     hooks_dir = tmp_path / "hooks"
     hooks_dir.mkdir()
     environ, log = install_environment(tmp_path, hooks_dir=hooks_dir)
+    _ = make_legacy_unit(tmp_path)
 
     result = run_installer("instalar", environ)
 
@@ -249,6 +265,7 @@ def test_uninstall_restores_the_legacy_service(tmp_path: Path) -> None:
     hooks_dir = tmp_path / "hooks"
     hooks_dir.mkdir()
     environ, log = install_environment(tmp_path, hooks_dir=hooks_dir)
+    _ = make_legacy_unit(tmp_path)
     _ = run_installer("instalar", environ)
 
     result = run_installer("desinstalar", environ)
@@ -259,6 +276,17 @@ def test_uninstall_restores_the_legacy_service(tmp_path: Path) -> None:
     calls = log.read_text(encoding="utf-8")
     assert "disable --now accent-theme.service" in calls
     assert "enable --now kitty-theme-watch.service" in calls
+
+
+def test_install_works_without_the_legacy_unit(tmp_path: Path) -> None:
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    environ, log = install_environment(tmp_path, hooks_dir=hooks_dir)
+
+    result = run_installer("instalar", environ)
+
+    assert result.returncode == 0, result.stderr
+    assert "kitty-theme-watch.service" not in log.read_text(encoding="utf-8")
 
 
 def test_install_reports_missing_dependencies(tmp_path: Path) -> None:

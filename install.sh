@@ -158,8 +158,10 @@ backup_current_state() {
 
 migrate_service() {
   systemctl --user daemon-reload || warn "no se pudo recargar systemd --user"
-  systemctl --user disable --now "$LEGACY_UNIT" \
-    || warn "no se pudo deshabilitar $LEGACY_UNIT"
+  if [ -f "$UNIT_DIR/$LEGACY_UNIT" ]; then
+    systemctl --user disable --now "$LEGACY_UNIT" \
+      || warn "no se pudo deshabilitar $LEGACY_UNIT"
+  fi
   systemctl --user enable --now "$NEW_UNIT" \
     || warn "no se pudo habilitar $NEW_UNIT"
 }
@@ -193,8 +195,10 @@ remove_base_registrations() {
 uninstall_engine() {
   require_dependencies "${REQUIRED_UNINSTALL_DEPS[@]}"
   systemctl --user disable --now "$NEW_UNIT" || warn "no se pudo deshabilitar $NEW_UNIT"
-  systemctl --user enable --now "$LEGACY_UNIT" \
-    || warn "no se pudo rehabilitar $LEGACY_UNIT"
+  if [ -f "$UNIT_DIR/$LEGACY_UNIT" ]; then
+    systemctl --user enable --now "$LEGACY_UNIT" \
+      || warn "no se pudo rehabilitar $LEGACY_UNIT"
+  fi
   rm -f "$WRAPPER_PATH"
   rm -f "$UNIT_PATH"
   systemctl --user daemon-reload || warn "no se pudo recargar systemd --user"
