@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
-from accent_theme.accent import accent_to_hex, read_accent, read_explicit_accent
+from accent_theme.accent import accent_to_hex, read_accent
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -31,11 +31,6 @@ class WatcherError(RuntimeError):
         """Construye el error de dependencia ausente."""
         return cls(f"{name} no encontrado; instálalo para usar accent-theme watch")
 
-    @classmethod
-    def missing_waywallen(cls) -> WatcherError:
-        """Construye el error de driver Waywallen ausente."""
-        return cls("driver de Waywallen ausente; no se puede derivar el accent")
-
 
 @dataclass(frozen=True, slots=True)
 class WatcherPaths:
@@ -44,7 +39,6 @@ class WatcherPaths:
     kdeglobals: Path
     cache_path: Path
     lock_path: Path
-    waywallen_config: Path | None = None
 
 
 @dataclass(slots=True)
@@ -63,7 +57,6 @@ class Watcher:
     paths: WatcherPaths
     environ: Mapping[str, str]
     generate_command: Sequence[str] = DEFAULT_GENERATE_COMMAND
-    derive_command: Sequence[str] | None = None
     settle_seconds: float = SETTLE_SECONDS
     state: GenerationState = field(default_factory=GenerationState, compare=False)
 
@@ -92,10 +85,6 @@ class Watcher:
         """Indica si el acento difiere del de la última regeneración."""
         return self.cached_accent() != accent
 
-    def needs_waywallen_derive(self) -> bool:
-        """Indica si Waywallen debe derivar el acento porque KDE no tiene uno."""
-        return read_explicit_accent(self.paths.kdeglobals) is None
-
     def _which(self, name: str) -> str:
         found = shutil.which(name, path=self.environ.get("PATH", ""))
         if found is None:
@@ -105,9 +94,6 @@ class Watcher:
     def inotify_command(self) -> list[str]:
         """Construye el comando ``inotifywait`` con los directorios vigilados."""
         directories = [self.paths.kdeglobals.parent]
-        waywallen = self.paths.waywallen_config
-        if waywallen is not None:
-            directories.append(waywallen.parent)
         return [
             self._which("inotifywait"),
             "-m",
@@ -144,34 +130,18 @@ class Watcher:
             return 1
         return process.returncode
 
-    def _handle_waywallen(self) -> str:
-        if self.derive_command is None:
-            return "ignored"
-        if not self.needs_waywallen_derive():
-            return "ignored"
-        return "derived" if self._run(self.derive_command) == 0 else "failed"
-
     def is_relevant(self, raw_path: str) -> bool:
         """Indica si el evento corresponde a un archivo vigilado.
 
         KDE guarda ``kdeglobals`` de forma atómica y en el mismo directorio
         deja ``kdeglobals.lock`` y temporales: solo el archivo exacto cuenta.
         """
-        path = Path(raw_path)
-        if path == self.paths.kdeglobals:
-            return True
-        waywallen = self.paths.waywallen_config
-        return waywallen is not None and path == waywallen
+        return Path(raw_path) == self.paths.kdeglobals
 
     def handle_event(self, raw_path: str) -> str:
         """Procesa un evento de inotify y devuelve la acción realizada."""
         if not self.is_relevant(raw_path):
             return "ignored"
-        path = Path(raw_path)
-        waywallen = self.paths.waywallen_config
-        if waywallen is not None and path == waywallen:
-            return self._handle_waywallen()
-
         current = self.current_accent()
         if not self.accent_changed(current):
             return "unchanged"

@@ -45,8 +45,8 @@ def test_parse_matugen_json_reads_role_first_tokens() -> None:
 
     assert tokens["primary"] == "#123456"
     assert tokens["surface"] == "#123456"
-    assert tokens.legacy_environment()["MATUGEN_PRIMARY"] == "#123456"
-    assert tokens.legacy_environment()["MATUGEN_ACCENT"] == "#123456"
+    assert tokens.app_environment()["MATUGEN_PRIMARY"] == "#123456"
+    assert tokens.app_environment()["MATUGEN_ACCENT"] == "#123456"
 
 
 def test_parse_matugen_json_preserves_optional_legacy_roles() -> None:
@@ -63,8 +63,8 @@ def test_parse_matugen_json_preserves_optional_legacy_roles() -> None:
     assert tokens["background"] == "#101010"
     assert tokens["source_color"] == "#abcdef"
     assert tokens["surface_variant"] == "#202020"
-    assert tokens.legacy_environment()["MATUGEN_BG"] == "#101010"
-    assert tokens.legacy_environment()["MATUGEN_CARD"] == "#202020"
+    assert tokens.app_environment()["MATUGEN_BG"] == "#101010"
+    assert tokens.app_environment()["MATUGEN_CARD"] == "#202020"
 
 
 def test_parse_matugen_json_rejects_malformed_json() -> None:

@@ -29,6 +29,7 @@ BASE_APPS = (
     "heroic",
     "zen",
     "steam",
+    "caparazon-shell",
 )
 REQUIRED_ROLES = (
     "surface",
@@ -96,11 +97,7 @@ def make_fake_systemctl(directory: Path, log: Path) -> Path:
     return make_stub(directory, "systemctl", body)
 
 
-def install_environment(
-    tmp_path: Path,
-    *,
-    hooks_dir: Path,
-) -> tuple[dict[str, str], Path]:
+def install_environment(tmp_path: Path) -> tuple[dict[str, str], Path]:
     """Prepara un entorno aislado con dependencias simuladas."""
     home = tmp_path / "home"
     binaries = tmp_path / "bin"
@@ -118,7 +115,6 @@ def install_environment(
         "XDG_DATA_HOME": str(home / ".local" / "share"),
         "XDG_CACHE_HOME": str(home / ".cache"),
         "XDG_RUNTIME_DIR": str(runtime_dir),
-        "ACCENT_THEME_HOOKS_DIR": str(hooks_dir),
     }
     return environ, log
 
@@ -215,9 +211,7 @@ def test_installer_supports_both_actions() -> None:
 def test_install_prepares_the_engine_and_migrates_the_service(
     tmp_path: Path,
 ) -> None:
-    hooks_dir = tmp_path / "hooks"
-    hooks_dir.mkdir()
-    environ, log = install_environment(tmp_path, hooks_dir=hooks_dir)
+    environ, log = install_environment(tmp_path)
     _ = make_legacy_unit(tmp_path)
 
     result = run_installer("instalar", environ)
@@ -243,9 +237,7 @@ def test_install_prepares_the_engine_and_migrates_the_service(
 
 
 def test_install_is_idempotent(tmp_path: Path) -> None:
-    hooks_dir = tmp_path / "hooks"
-    hooks_dir.mkdir()
-    environ, _ = install_environment(tmp_path, hooks_dir=hooks_dir)
+    environ, _ = install_environment(tmp_path)
 
     first = run_installer("instalar", environ)
     second = run_installer("instalar", environ)
@@ -262,9 +254,7 @@ def test_install_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_uninstall_restores_the_legacy_service(tmp_path: Path) -> None:
-    hooks_dir = tmp_path / "hooks"
-    hooks_dir.mkdir()
-    environ, log = install_environment(tmp_path, hooks_dir=hooks_dir)
+    environ, log = install_environment(tmp_path)
     _ = make_legacy_unit(tmp_path)
     _ = run_installer("instalar", environ)
 
@@ -279,9 +269,7 @@ def test_uninstall_restores_the_legacy_service(tmp_path: Path) -> None:
 
 
 def test_install_works_without_the_legacy_unit(tmp_path: Path) -> None:
-    hooks_dir = tmp_path / "hooks"
-    hooks_dir.mkdir()
-    environ, log = install_environment(tmp_path, hooks_dir=hooks_dir)
+    environ, log = install_environment(tmp_path)
 
     result = run_installer("instalar", environ)
 
@@ -290,8 +278,6 @@ def test_install_works_without_the_legacy_unit(tmp_path: Path) -> None:
 
 
 def test_install_reports_missing_dependencies(tmp_path: Path) -> None:
-    hooks_dir = tmp_path / "hooks"
-    hooks_dir.mkdir()
     home = tmp_path / "home"
     binaries = tmp_path / "bin"
     binaries.mkdir(parents=True)
@@ -302,7 +288,6 @@ def test_install_reports_missing_dependencies(tmp_path: Path) -> None:
         "XDG_CONFIG_HOME": str(home / ".config"),
         "XDG_DATA_HOME": str(home / ".local" / "share"),
         "XDG_CACHE_HOME": str(home / ".cache"),
-        "ACCENT_THEME_HOOKS_DIR": str(hooks_dir),
     }
 
     result = run_installer("instalar", environ)
@@ -328,9 +313,7 @@ def test_installer_rejects_unknown_actions(tmp_path: Path) -> None:
 
 
 def test_generated_config_lists_every_base_app(tmp_path: Path) -> None:
-    hooks_dir = tmp_path / "hooks"
-    hooks_dir.mkdir()
-    environ, _ = install_environment(tmp_path, hooks_dir=hooks_dir)
+    environ, _ = install_environment(tmp_path)
     _ = run_installer("instalar", environ)
 
     config = (

@@ -37,7 +37,6 @@ reportPrivateUsage = "error"
 target-version = "py311"
 line-length = 88
 src = ["src", "tests"]
-extend-exclude = ["hooks/active", "hooks/support"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -55,7 +54,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"hooks/bridge.py" = ["INP001"]
 "tests/**/*.py" = [
     "S101",
     "ARG",

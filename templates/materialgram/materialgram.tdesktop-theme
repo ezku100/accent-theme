@@ -1,36 +1,4 @@
-#!/usr/bin/env python3
-"""
-Genera `Dinamico.tdesktop-theme` para Materialgram (fork de Telegram
-Desktop) a partir del Accent de KDE.
-
-Plantilla: tema "SolidDark" de MasterGroosha (MIT,
-https://github.com/MasterGroosha/telegram-soliddark-theme). Se conserva
-su cabecera/atribución; solo se sustituyen las variables de color y los
-hex inline marcados con el accent derivado de KDE. Los colores
-semánticos (estados de peers 1-8, online, errores) se dejan intactos.
-
-Importación (única vez): enviar ~/Documents/Dinamico.tdesktop-theme a
-"Mensajes guardados", tocar la burbuja -> Aplicar. Aparece en
-"Temas personalizados". Telegram no recarga el archivo en vivo: tras
-cada cambio de accent, re-tocar "Dinamico" en la lista (sin reiniciar).
-"""
-import colorsys
-import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from bridge import get_accent_rgb, hsv_to_hex
-
-DESTINOS = [
-    os.path.expanduser("~/.var/app/io.github.kukuruzka165.materialgram/data/materialgram/tdata/Dinamico.tdesktop-theme"),
-    os.path.expanduser("~/.config/materialgram/themes/Dinamico.tdesktop-theme"),
-    os.path.expanduser("~/Documents/Dinamico.tdesktop-theme"),
-]
-
-# Plantilla completa con la estructura real de un .tdesktop-theme.
-# Los valores de accent/fondo se sustituyen en main(); el resto queda
-# tal cual (claves semánticas, peers, etc.).
-TEMPLATE = """//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                              //
 //                          SolidDark theme v1.2 for Telegram Desktop.                          //
 //                          (plantilla MIT de MasterGroosha)                                    //
@@ -40,22 +8,22 @@ TEMPLATE = """//////////////////////////////////////////////////////////////////
 
 // Color presets //
 
-COLOR_GRAY: #999999;
-COLOR_DARK: #392F3C;
-COLOR_PURPLE_DARK: #9876AD;
-COLOR_PURPLE_LIGHT: #9151A6;
-COLOR_PURPLE_RIPPLE_ACTIVE: #787BAC;
+COLOR_GRAY: {{matugen_grey}};
+COLOR_DARK: {{matugen_bg}};
+COLOR_PURPLE_DARK: {{matugen_accent}};
+COLOR_PURPLE_LIGHT: {{matugen_accent_light}};
+COLOR_PURPLE_RIPPLE_ACTIVE: {{matugen_accent_pressed}};
 
-COLOR_WHITE: #ffffff;
+COLOR_WHITE: {{matugen_fg}};
 COLOR_BLACK: #000000;
-COLOR_PINK: #e016a0;
-COLOR_HOVER: #424444;
+COLOR_PINK: {{matugen_accent}};
+COLOR_HOVER: {{matugen_bg_over2}};
 
 
 // basic
 windowBg: COLOR_DARK;
 windowFg: COLOR_WHITE;
-windowBgOver: #3A2F3E;
+windowBgOver: {{matugen_bg_over}};
 windowBgRipple: #272828;
 windowFgOver: windowFg;
 windowSubTextFg: COLOR_GRAY;
@@ -77,7 +45,7 @@ imageBgTransparent: COLOR_WHITE;
 
 //widgets
 activeButtonBg: COLOR_PURPLE_DARK;
-activeButtonBgOver: #908FAE;
+activeButtonBgOver: {{matugen_accent_light}};
 activeButtonBgRipple: COLOR_PURPLE_RIPPLE_ACTIVE;
 activeButtonFg: COLOR_WHITE;
 activeButtonFgOver: activeButtonFg;
@@ -87,8 +55,8 @@ activeLineFg: COLOR_PURPLE_DARK;
 activeLineFgError: #e48383;
 
 lightButtonBg: COLOR_DARK;
-lightButtonBgOver: #424444;
-lightButtonBgRipple: #3A2F3E;
+lightButtonBgOver: {{matugen_bg_over2}};
+lightButtonBgRipple: {{matugen_bg_over}};
 lightButtonFg: COLOR_WHITE;
 lightButtonFgOver: lightButtonFg;
 
@@ -231,7 +199,7 @@ dialogsUnreadBg: COLOR_PURPLE_DARK;
 dialogsUnreadBgMuted: #999999;
 dialogsUnreadFg: COLOR_WHITE;
 
-dialogsBgOver: #3A2F3E;
+dialogsBgOver: {{matugen_bg_over}};
 dialogsNameFgOver: #ededed;
 dialogsChatIconFgOver: dialogsNameFgOver;
 dialogsDateFgOver: windowSubTextFgOver;
@@ -296,7 +264,7 @@ historySystemBg: #89a0b47f;
 historySystemBgSelected: #bbc8d4a2;
 historySystemFg: COLOR_WHITE;
 
-historyUnreadBarBg: #424444;
+historyUnreadBarBg: {{matugen_bg_over2}};
 historyUnreadBarBorder: COLOR_DARK;
 historyUnreadBarFg: #ededed;
 
@@ -321,14 +289,14 @@ historyPeer8NameFg: #ce671b;
 historyPeer8UserpicBg: #faa774;
 historyPeerUserpicFg: COLOR_WHITE;
 
-historyScrollBarBg: #9876AD7a;
-historyScrollBarBgOver: #9876ADbc;
+historyScrollBarBg: {{matugen_accent}}7a;
+historyScrollBarBgOver: {{matugen_accent}}bc;
 historyScrollBg: #6f72724d;
 historyScrollBgOver: #6f727280;
 
-msgInBg: #A195AE24;
+msgInBg: {{matugen_bg_over}};
 msgInBgSelected: #222323;
-msgOutBg: #9976AD24;
+msgOutBg: {{matugen_accent_pressed}};
 msgOutBgSelected: #222323;
 msgSelectOverlay: #2223239b;
 msgStickerOverlay: #2223237f;
@@ -427,7 +395,7 @@ toastFg: COLOR_WHITE;
 reportSpamBg: emojiPanHeaderBg;
 reportSpamFg: COLOR_GRAY;
 
-historyToDownBg: #424444;
+historyToDownBg: {{matugen_bg_over2}};
 historyToDownBgOver: windowBgOver;
 historyToDownBgRipple: windowBgRipple;
 historyToDownFg: menuIconFg;
@@ -515,58 +483,3 @@ sideBarIconFgActive: COLOR_PURPLE_DARK;
 sideBarBadgeBg: COLOR_PURPLE_DARK;
 sideBarBadgeBgMuted: COLOR_GRAY;
 sideBarBadgeFg: COLOR_WHITE;
-"""
-
-
-def main():
-    r, g, b = get_accent_rgb()
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-
-    bg = hsv_to_hex(h, min(0.30, s), 0.10)
-    bg_over = hsv_to_hex(h, min(0.30, s), 0.16)
-    bg_over2 = hsv_to_hex(h, min(0.30, s), 0.21)
-    fg = hsv_to_hex(h, min(0.04, s), 0.93)
-    grey = hsv_to_hex(h, min(0.12, s), 0.60)
-    accent = hsv_to_hex(h, s, v)
-    accent_light = hsv_to_hex(h, max(0.15, s - 0.15), min(1.0, v + 0.08))
-    accent_pressed = hsv_to_hex(h, min(1.0, s + 0.05), max(0.20, v - 0.18))
-    env = os.environ.get
-    bg, bg_over, bg_over2 = env("MATUGEN_BG", bg), env("MATUGEN_BG_OVER", bg_over), env("MATUGEN_BG_OVER2", bg_over2)
-    fg, grey = env("MATUGEN_FG", fg), env("MATUGEN_GREY", grey)
-    accent = env("MATUGEN_ACCENT", accent)
-    accent_light, accent_pressed = env("MATUGEN_ACCENT_LIGHT", accent_light), env("MATUGEN_ACCENT_PRESSED", accent_pressed)
-
-    content = TEMPLATE
-    subs = {
-        # Variables de la plantilla -> paleta KDE
-        "COLOR_GRAY: #999999;": f"COLOR_GRAY: {grey};",
-        "COLOR_DARK: #392F3C;": f"COLOR_DARK: {bg};",
-        "COLOR_PURPLE_DARK: #9876AD;": f"COLOR_PURPLE_DARK: {accent};",
-        "COLOR_PURPLE_LIGHT: #9151A6;": f"COLOR_PURPLE_LIGHT: {accent_light};",
-        "COLOR_PURPLE_RIPPLE_ACTIVE: #787BAC;": f"COLOR_PURPLE_RIPPLE_ACTIVE: {accent_pressed};",
-        "COLOR_WHITE: #ffffff;": f"COLOR_WHITE: {fg};",
-        "COLOR_PINK: #e016a0;": f"COLOR_PINK: {accent};",
-        # Hex inline de la plantilla (hovers, scrollbars, burbujas)
-        "#3A2F3E": bg_over,        # windowBgOver, dialogsBgOver, lightButtonBgRipple
-        "#424444": bg_over2,       # lightButtonBgOver, historyUnreadBarBg, historyToDownBg
-        "#908FAE": accent_light,   # activeButtonBgOver
-        "#9876AD7a": f"{accent}7a",  # historyScrollBarBg
-        "#9876ADbc": f"{accent}bc",  # historyScrollBarBgOver
-        "#A195AE24": bg_over,        # msgInBg (burbuja entrante, neutra, SOLIDA)
-        "#9976AD24": accent_pressed,  # msgOutBg (burbuja saliente, accent, SOLIDA)
-    }
-    for old, new in subs.items():
-        content = content.replace(old, new)
-
-    for dest in DESTINOS:
-        try:
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            with open(dest, "w") as f:
-                f.write(content)
-            print(f"Materialgram: tema escrito en {dest} (accent {accent}).")
-        except OSError as e:
-            print(f"Materialgram: no se pudo escribir {dest}: {e}")
-
-
-if __name__ == "__main__":
-    main()

@@ -5,8 +5,14 @@ Motor global de tema para KDE Plasma basado en `AccentColor` y
 
 Lee el color de acento de `~/.config/kdeglobals`, genera una paleta Material
 completa y la reparte entre las aplicaciones integradas: Kitty, Ghostty,
-Konsole, Kate, Cava, Heroic, Zen Browser y Millennium (Steam). Un servicio de
-usuario regenera la paleta cada vez que cambia el acento.
+Konsole, Kate, Cava, Heroic, Zen Browser, Millennium (Steam) y Caparazón
+Shell. Un servicio de usuario regenera la paleta cada vez que cambia el
+acento.
+
+Cuatro apps más no encajan en una plantilla de Matugen, porque escriben su
+configuración en sitios donde una plantilla no llega (un JSON que hay que
+fusionar con lo que ya había, un tema que se deriva de otro archivo). El
+motor las aplica directamente: Brave, EquiBop, Materialgram y OBS Studio.
 
 ## Requisitos
 
@@ -34,7 +40,7 @@ El instalador:
 
 1. Copia el motor a `~/.local/share/accent-theme/source`.
 2. Crea el comando `~/.local/bin/accent-theme`.
-3. Registra las ocho apps base en `~/.config/accent-theme/templates.d/`.
+3. Registra las nueve apps base en `~/.config/accent-theme/templates.d/`.
 4. Genera `~/.config/accent-theme/matugen.toml` (sin tocar
    `~/.config/matugen/config.toml`).
 5. Instala `~/.config/systemd/user/accent-theme.service`.
@@ -63,6 +69,20 @@ accent-theme doctor          # comprueba dependencias, registro y outputs
 accent-theme rebuild-config  # valida templates.d y regenera matugen.toml
 accent-theme register --app NOMBRE --descriptor RUTA
 ```
+
+### Apps que aplica el motor
+
+Estas cuatro apps no son plantillas: el motor les escribe la configuración
+directamente, en `src/accent_theme/apps/`.
+
+| App | Qué hace |
+| --- | --- |
+| Brave | Parchea `Local State` y `Preferences` con el color de acento |
+| EquiBop | Escribe el tema CSS con los tonos del acento |
+| Materialgram | Escribe el tema `.tdesktop-theme` desde la plantilla de SolidDark |
+| OBS Studio | Deriva el tema `Dinamico` del tema Venom instalado |
+
+Si una app no está instalada, su paso se salta sin fallar.
 
 ### Integrar otra aplicación
 

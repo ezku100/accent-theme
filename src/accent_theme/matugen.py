@@ -93,8 +93,8 @@ class MatugenTokens:
         """Devuelve el color de un role del esquema oscuro."""
         return self.colors[role]
 
-    def legacy_environment(self) -> dict[str, str]:
-        """Construye las variables ``MATUGEN_*`` consumidas por hooks legacy."""
+    def app_environment(self) -> dict[str, str]:
+        """Construye las variables ``MATUGEN_*`` que consumen las apps."""
         accent = self.colors.get("source_color", self.colors["primary"])
         background = self.colors.get("background", accent)
         card = self.colors.get("surface_variant", accent)

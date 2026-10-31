@@ -43,7 +43,6 @@ def make_watcher(
     *,
     environ: Mapping[str, str],
     generate_command: Sequence[str],
-    derive_command: Sequence[str] | None = None,
     accent: str | None = "61,174,233",
 ) -> Watcher:
     kdeglobals = tmp_path / "kdeglobals"
@@ -51,20 +50,15 @@ def make_watcher(
         _ = kdeglobals.write_text(
             f"[General]\nAccentColor={accent}\n", encoding="utf-8"
         )
-    waywallen = tmp_path / "waywallen" / "config.toml"
-    waywallen.parent.mkdir(parents=True, exist_ok=True)
-    _ = waywallen.write_text("[global]\n", encoding="utf-8")
     paths = WatcherPaths(
         kdeglobals=kdeglobals,
         cache_path=tmp_path / "cache" / "last-watch-accent",
         lock_path=tmp_path / "cache" / "feeder.lock",
-        waywallen_config=waywallen,
     )
     return Watcher(
         paths=paths,
         environ=environ,
         generate_command=generate_command,
-        derive_command=derive_command,
     )
 
 
@@ -105,7 +99,6 @@ def test_inotify_command_watches_events_and_directories(tmp_path: Path) -> None:
     assert command[0].endswith("inotifywait")
     assert WATCH_EVENTS in command
     assert str(tmp_path) in command
-    assert str(tmp_path / "waywallen") in command
 
 
 def test_locked_command_wraps_generate_with_flock(tmp_path: Path) -> None:
@@ -121,25 +114,6 @@ def test_locked_command_wraps_generate_with_flock(tmp_path: Path) -> None:
     assert "-n" in command
     assert str(tmp_path / "cache" / "feeder.lock") in command
     assert command[-2:] == ["accent-theme", "generate"]
-
-
-def test_waywallen_derive_only_runs_without_explicit_accent(tmp_path: Path) -> None:
-    with_accent = make_watcher(
-        tmp_path,
-        environ=make_environment(tmp_path),
-        generate_command=("true",),
-        derive_command=("true",),
-    )
-    without_accent = make_watcher(
-        tmp_path / "otro",
-        environ=make_environment(tmp_path / "otro"),
-        generate_command=("true",),
-        derive_command=("true",),
-        accent=None,
-    )
-
-    assert with_accent.needs_waywallen_derive() is False
-    assert without_accent.needs_waywallen_derive() is True
 
 
 def test_handle_event_ignores_unrelated_files(tmp_path: Path) -> None:
@@ -160,7 +134,6 @@ def test_is_relevant_only_accepts_watched_files(tmp_path: Path) -> None:
     )
 
     assert watcher.is_relevant(str(tmp_path / "kdeglobals")) is True
-    assert watcher.is_relevant(str(tmp_path / "waywallen" / "config.toml")) is True
     assert watcher.is_relevant(str(tmp_path / "kdeglobals.lock")) is False
     assert watcher.is_relevant(str(tmp_path / "kdeglobals.YzcWHU")) is False
     assert watcher.is_relevant(str(tmp_path / "#1209961923")) is False
@@ -227,23 +200,6 @@ def test_handle_event_reports_failure_without_caching(tmp_path: Path) -> None:
 
     assert result == "failed"
     assert watcher.cached_accent() is None
-
-
-def test_handle_event_runs_derive_for_waywallen_change(tmp_path: Path) -> None:
-    log = tmp_path / "derive.log"
-    make_script(tmp_path / "derive.sh", f"echo derivado >> {log}")
-    watcher = make_watcher(
-        tmp_path,
-        environ=make_environment(tmp_path),
-        generate_command=("true",),
-        derive_command=(str(tmp_path / "derive.sh"),),
-        accent=None,
-    )
-
-    result = watcher.handle_event(str(tmp_path / "waywallen" / "config.toml"))
-
-    assert result == "derived"
-    assert log.read_text(encoding="utf-8").strip() == "derivado"
 
 
 def test_run_processes_events_and_counts_regenerations(tmp_path: Path) -> None:

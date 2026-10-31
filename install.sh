@@ -13,8 +13,8 @@ set -euo pipefail
 PROGRAM_NAME="install.sh"
 LEGACY_UNIT="kitty-theme-watch.service"
 NEW_UNIT="accent-theme.service"
-BASE_APPS=(kitty ghostty konsole kate cava heroic zen steam)
-INSTALL_ITEMS=(src hooks templates templates.d systemd)
+BASE_APPS=(kitty ghostty konsole kate cava heroic zen steam caparazon-shell)
+INSTALL_ITEMS=(src templates templates.d systemd)
 REQUIRED_INSTALL_DEPS=(matugen python3 inotifywait flock kreadconfig6)
 REQUIRED_UNINSTALL_DEPS=(systemctl)
 APT_PACKAGES="matugen inotify-tools util-linux libkf6config-bin"

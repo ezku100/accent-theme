@@ -13,14 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 from accent_theme.accent import accent_to_hex, read_kde_accent
-from accent_theme.hooks import (
-    build_hook_environment,
-    discover_hooks,
-    format_results,
-    resolve_hooks_dir,
-    resolve_support_dir,
-    run_hooks,
-)
+from accent_theme.apps import AppPaths, apply_app_integrations
 from accent_theme.live import LivePaths, apply_live_integrations
 from accent_theme.matugen import (
     MatugenError,
@@ -45,9 +38,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 APP_NAME_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-WAYWALLEN_CONFIG_RELATIVE: Final = (
-    ".var/app/org.waywallen.waywallen/config/waywallen/config.toml"
-)
 
 
 class CliError(RuntimeError):
@@ -264,26 +254,31 @@ def _handle_generate(
     if missing_outputs:
         raise CliError.missing_outputs(missing_outputs)
 
-    hook_results = run_hooks(
-        discover_hooks(resolve_hooks_dir(environ)),
-        build_hook_environment(tokens, environ),
+    app_results = apply_app_integrations(
+        AppPaths.from_environment(environ),
+        read_kde_accent(kdeglobals, environ),
+        tokens.app_environment(),
     )
     live_results = apply_live_integrations(
         LivePaths.from_environment(environ),
         accent,
         environ,
     )
-    failed_hooks = [result for result in hook_results if not result.succeeded]
+    failed_apps = [result for result in app_results if result.status == "failed"]
     failed_live = [result for result in live_results if result.status == "failed"]
-    for result in failed_hooks:
-        _ = sys.stderr.write(f"hook fallido {result.name}: {result.stderr}\n")
+    for result in failed_apps:
+        _ = sys.stderr.write(f"app fallida {result.app}: {result.detail}\n")
     for result in failed_live:
         _ = sys.stderr.write(f"recarga fallida {result.app}: {result.detail}\n")
 
     _ = sys.stdout.write(
         f"paleta generada con {accent}; {len(tokens.colors)} roles disponibles\n"
     )
-    _ = sys.stdout.write(f"hooks: {format_results(hook_results)}\n")
+    _ = sys.stdout.write(
+        "apps: "
+        + "; ".join(f"{result.app}: {result.status}" for result in app_results)
+        + "\n"
+    )
     _ = sys.stdout.write(
         "recargas: "
         + "; ".join(f"{result.app}: {result.status}" for result in live_results)
@@ -294,21 +289,11 @@ def _handle_generate(
 
 def _watcher_paths(paths: ThemePaths) -> WatcherPaths:
     """Construye las rutas que vigila el watcher."""
-    waywallen = paths.home / WAYWALLEN_CONFIG_RELATIVE
     return WatcherPaths(
         kdeglobals=paths.config_home.parent / "kdeglobals",
         cache_path=paths.cache_home / "last-watch-accent",
         lock_path=paths.cache_home / "feeder.lock",
-        waywallen_config=waywallen if waywallen.is_file() else None,
     )
-
-
-def _derive_command(environ: Mapping[str, str]) -> tuple[str, ...] | None:
-    """Construye el comando que deriva el acento desde Waywallen."""
-    driver = resolve_support_dir(environ) / "derive_waywallen_accent.py"
-    if not driver.is_file():
-        return None
-    return (sys.executable, str(driver))
 
 
 def _handle_watch(
@@ -319,7 +304,6 @@ def _handle_watch(
         paths=_watcher_paths(paths),
         environ=environ,
         generate_command=DEFAULT_GENERATE_COMMAND,
-        derive_command=_derive_command(environ),
     )
     try:
         _ = watcher.watch()
