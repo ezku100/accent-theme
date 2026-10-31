@@ -16,6 +16,17 @@ COLOR_SECTION: Final = "color"
 LIVE_CONFIG_KEY: Final = "live-config"
 
 
+HEX_COLOR_PATTERN: Final = re.compile(r"^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$")
+
+
+def _normalize_value(raw_value: str) -> str:
+    """Cava exige comillas en los colores hex (``'#xxxxxx'``)."""
+    value = raw_value.strip().strip("'\"")
+    if HEX_COLOR_PATTERN.match(value):
+        return f"'{value}'"
+    return value
+
+
 def _parse_snippet(snippet: Path) -> dict[str, str]:
     """Lee el fragmento ``key = value`` generado por Matugen."""
     wanted: dict[str, str] = {}
@@ -24,7 +35,7 @@ def _parse_snippet(snippet: Path) -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = (part.strip() for part in line.split("=", 1))
-        wanted[key] = value.strip("'\"")
+        wanted[key] = _normalize_value(value)
     return wanted
 
 

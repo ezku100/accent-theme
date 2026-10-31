@@ -150,12 +150,12 @@ def test_deploy_zen_skips_without_profiles(tmp_path: Path) -> None:
 def test_inject_cava_writes_keys_inside_color_section(tmp_path: Path) -> None:
     snippet = tmp_path / "snippet"
     _ = snippet.write_text(
-        "foreground = #ffffff\nbackground = #000000\n",
+        "foreground = '#ffffff'\nbackground = '#000000'\ngradient = 1\n",
         encoding="utf-8",
     )
     config = tmp_path / "config"
     _ = config.write_text(
-        "[general]\nlive-config = 0\n\n[color]\nforeground = #aaaaaa\n",
+        "[general]\nlive-config = 0\n\n[color]\nforeground = '#aaaaaa'\n",
         encoding="utf-8",
     )
 
@@ -164,9 +164,21 @@ def test_inject_cava_writes_keys_inside_color_section(tmp_path: Path) -> None:
     contents = config.read_text(encoding="utf-8")
     assert result.status == "applied"
     assert "live-config = 1" in contents
-    assert "foreground = #ffffff" in contents
-    assert "background = #000000" in contents
+    assert "foreground = '#ffffff'" in contents
+    assert "background = '#000000'" in contents
+    assert "gradient = 1" in contents
     assert "#aaaaaa" not in contents
+
+
+def test_inject_cava_quotes_unquoted_hex_values(tmp_path: Path) -> None:
+    snippet = tmp_path / "snippet"
+    _ = snippet.write_text("foreground = #ff0000\n", encoding="utf-8")
+    config = tmp_path / "config"
+    _ = config.write_text("[general]\n\n[color]\n", encoding="utf-8")
+
+    _ = inject_cava(snippet, config)
+
+    assert "foreground = '#ff0000'" in config.read_text(encoding="utf-8")
 
 
 def test_inject_cava_skips_without_snippet(tmp_path: Path) -> None:
