@@ -14,6 +14,7 @@ PROGRAM_NAME="install.sh"
 LEGACY_UNIT="kitty-theme-watch.service"
 NEW_UNIT="accent-theme.service"
 BASE_APPS=(kitty ghostty konsole kate cava heroic zen steam caparazon-shell)
+NATIVE_TEMPLATE_APPS=(materialgram obs)
 INSTALL_ITEMS=(src templates templates.d systemd)
 REQUIRED_INSTALL_DEPS=(matugen python3 inotifywait flock kreadconfig6)
 REQUIRED_UNINSTALL_DEPS=(systemctl)
@@ -134,6 +135,18 @@ register_base_apps() {
   done
 }
 
+install_native_templates() {
+  local app
+  for app in "${NATIVE_TEMPLATE_APPS[@]}"; do
+    if [ ! -d "$SOURCE_ROOT/templates/$app" ]; then
+      warn "falta la plantilla de $app; se omite"
+      continue
+    fi
+    mkdir -p "$TEMPLATES_DIR/$app"
+    cp -a "$SOURCE_ROOT/templates/$app/." "$TEMPLATES_DIR/$app/"
+  done
+}
+
 install_service_unit() {
   mkdir -p "$UNIT_DIR"
   cp -a "$SOURCE_ROOT/systemd/$NEW_UNIT" "$UNIT_PATH"
@@ -175,6 +188,7 @@ install_engine() {
   install_engine_source
   install_wrapper
   register_base_apps
+  install_native_templates
   install_service_unit
   local backup
   backup="$(backup_current_state)"
@@ -188,6 +202,9 @@ remove_base_registrations() {
   local app
   for app in "${BASE_APPS[@]}"; do
     rm -f "$DESCRIPTORS_DIR/$app.toml"
+    rm -rf "${TEMPLATES_DIR:?}/$app"
+  done
+  for app in "${NATIVE_TEMPLATE_APPS[@]}"; do
     rm -rf "${TEMPLATES_DIR:?}/$app"
   done
 }

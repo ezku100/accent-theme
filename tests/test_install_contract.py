@@ -31,6 +31,10 @@ BASE_APPS = (
     "steam",
     "caparazon-shell",
 )
+NATIVE_TEMPLATE_APPS = (
+    "materialgram",
+    "obs",
+)
 REQUIRED_ROLES = (
     "surface",
     "surface_container_lowest",
@@ -230,10 +234,26 @@ def test_install_prepares_the_engine_and_migrates_the_service(
             home / ".config" / "accent-theme" / "templates.d" / f"{app}.toml"
         ).is_file()
     assert (home / ".config" / "kitty" / "theme.conf").is_file()
+    for app in NATIVE_TEMPLATE_APPS:
+        assert (home / ".config" / "accent-theme" / "templates" / app).is_dir()
 
     calls = log.read_text(encoding="utf-8")
     assert "disable --now kitty-theme-watch.service" in calls
     assert "enable --now accent-theme.service" in calls
+
+
+def test_install_copies_the_templates_that_the_apps_need(tmp_path: Path) -> None:
+    environ, _ = install_environment(tmp_path)
+
+    result = run_installer("instalar", environ)
+
+    home = tmp_path / "home"
+    templates = home / ".config" / "accent-theme" / "templates"
+    assert result.returncode == 0, result.stderr
+    assert (
+        templates / "materialgram" / "materialgram.tdesktop-theme"
+    ).is_file()
+    assert (templates / "obs" / "base.obt").is_file()
 
 
 def test_install_is_idempotent(tmp_path: Path) -> None:

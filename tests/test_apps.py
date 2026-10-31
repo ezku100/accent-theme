@@ -7,16 +7,16 @@ mano, así que cada una tiene su propio contrato.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 
+from accent_theme.accent import HSV
 from accent_theme.apps.brave import apply_brave, rgb_to_skcolor
 from accent_theme.apps.equibop import build_blue_shades, render_equibop_css
 from accent_theme.apps.materialgram import render_materialgram
-from accent_theme.apps.obs import accent_scale, render_obs_theme
+from accent_theme.apps.obs import accent_scale, apply_obs, render_obs_theme
 from accent_theme.apps.paths import AppPaths
 
-if TYPE_CHECKING:
-    from pathlib import Path
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 ACCENT = "#3daee9"
 PALETTE = {
@@ -121,3 +121,58 @@ def test_the_app_paths_follow_xdg(tmp_path: Path) -> None:
 
     assert paths.equibop_theme.is_relative_to(tmp_path / "config")
     assert paths.brave_roots[0].is_relative_to(tmp_path / "config")
+
+
+def test_the_repository_obs_base_declares_the_accent_slots() -> None:
+    base = (REPOSITORY_ROOT / "templates" / "obs" / "base.obt").read_text(
+        encoding="utf-8"
+    )
+
+    assert "@OBSThemeMeta" in base
+    for index in range(1, 6):
+        assert f"--orange{index}:" in base
+
+
+def test_the_obs_theme_falls_back_to_the_repository_base(tmp_path: Path) -> None:
+    destination = tmp_path / "themes" / "Dinamico.obt"
+
+    result = apply_obs(
+        tmp_path / "no-existe" / "Venom.obt",
+        (destination,),
+        HSV(hue=0.55, saturation=0.8, value=0.9),
+        tmp_path / "tampoco" / "base.obt",
+    )
+
+    assert result.status == "applied"
+    content = destination.read_text(encoding="utf-8")
+    assert "name: 'Dinamico';" in content
+    assert "id: 'com.ezku.Dinamico';" in content
+
+
+def test_the_obs_accent_slots_keep_a_color_in_the_vars_block() -> None:
+    base = (REPOSITORY_ROOT / "templates" / "obs" / "base.obt").read_text(
+        encoding="utf-8"
+    )
+
+    content = render_obs_theme(base, accent_scale(0.55, 0.8, 0.9))
+    start = content.index("@OBSThemeVars")
+    end = content.index("}", start)
+    variables = content[start:end]
+
+    for index in range(1, 6):
+        assert f"--orange{index}: #" in variables
+
+
+def test_the_obs_author_credits_a_foreign_base_only() -> None:
+    own = (
+        "@OBSThemeMeta {\n"
+        "    name: 'Dinamico Base';\n"
+        "    id: 'com.ezku.DinamicoBase';\n"
+        "    author: 'accent-theme';\n"
+        "}\n"
+    )
+
+    content = render_obs_theme(own, accent_scale(0.55, 0.8, 0.9))
+
+    assert "name: 'Dinamico';" in content
+    assert "author: 'Dinamico (accent KDE)';" in content

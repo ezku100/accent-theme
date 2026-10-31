@@ -17,6 +17,7 @@ class AppPaths:
     brave_roots: tuple[Path, ...]
     equibop_theme: Path
     obs_base: Path
+    obs_base_fallback: Path
     obs_themes: tuple[Path, ...]
     materialgram_template: Path
     materialgram_themes: tuple[Path, ...]
@@ -50,8 +51,13 @@ class AppPaths:
             / "com.obsproject.Studio"
             / "config"
             / "obs-studio"
-            / "themes"
-            / "Venom.obt",
+                / "themes"
+                / "Venom.obt",
+            obs_base_fallback=config_home
+            / "accent-theme"
+            / "templates"
+            / "obs"
+            / "base.obt",
             obs_themes=(
                 home
                 / ".var"

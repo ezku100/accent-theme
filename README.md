@@ -41,14 +41,19 @@ El instalador:
 1. Copia el motor a `~/.local/share/accent-theme/source`.
 2. Crea el comando `~/.local/bin/accent-theme`.
 3. Registra las nueve apps base en `~/.config/accent-theme/templates.d/`.
-4. Genera `~/.config/accent-theme/matugen.toml` (sin tocar
+4. Copia a `~/.config/accent-theme/templates/` las plantillas que leen las
+   apps que no son de Matugen (Materialgram y la base de OBS).
+5. Genera `~/.config/accent-theme/matugen.toml` (sin tocar
    `~/.config/matugen/config.toml`).
-5. Instala `~/.config/systemd/user/accent-theme.service`.
-6. Genera un backup fechado en `~/.local/share/accent-theme/backups/`.
-7. Habilita `accent-theme.service` y, si aún existe, deshabilita
+6. Instala `~/.config/systemd/user/accent-theme.service`.
+7. Genera un backup fechado en `~/.local/share/accent-theme/backups/`.
+8. Habilita `accent-theme.service` y, si aún existe, deshabilita
    `kitty-theme-watch.service` **sin borrarlo**.
 
-Es idempotente: puedes ejecutarlo las veces que quieras.
+Es idempotente: puedes ejecutarlo las veces que quieras. No hace falta
+tener nada más instalado para que las catorce apps queden temadas: las que
+dependen de un archivo de la máquina (OBS con Venom, Brave con sus perfiles)
+caen a su equivalente del repo o se saltan sin fallar.
 
 ### Desinstalación
 
@@ -72,17 +77,26 @@ accent-theme register --app NOMBRE --descriptor RUTA
 
 ### Apps que aplica el motor
 
-Estas cuatro apps no son plantillas: el motor les escribe la configuración
-directamente, en `src/accent_theme/apps/`.
+El motor temea catorce aplicaciones. Nueve son plantillas de Matugen (kitty,
+ghostty, konsole, kate, cava, heroic, zen, steam y caparazon-shell) y las
+cinco restantes las aplica él mismo, escribiendo su configuración en
+`src/accent_theme/apps/` y `src/accent_theme/live/`.
 
 | App | Qué hace |
 | --- | --- |
 | Brave | Parchea `Local State` y `Preferences` con el color de acento |
 | EquiBop | Escribe el tema CSS con los tonos del acento |
 | Materialgram | Escribe el tema `.tdesktop-theme` desde la plantilla de SolidDark |
-| OBS Studio | Deriva el tema `Dinamico` del tema Venom instalado |
+| OBS Studio | Escribe el tema `Dinamico` a partir del tema Venom instalado, o del propio (`templates/obs/base.obt`) si no lo hay |
+| Millennium | Escribe el color de acento en su configuración |
 
-Si una app no está instalada, su paso se salta sin fallar.
+Si una app no está instalada, su paso se salta sin fallar. `accent-theme
+doctor` dice qué queda temado en cada máquina:
+
+```
+doctor: 9 integraciones correctas
+cobertura: brave: ok; equibop: ok; materialgram: ok; obs: ok; millennium: ok
+```
 
 ### Integrar otra aplicación
 

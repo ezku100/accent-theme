@@ -11,6 +11,8 @@ from accent_theme.cli import main
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import pytest
+
 
 def write_registration_source(tmp_path: Path) -> Path:
     source = tmp_path / "integration" / "theme"
@@ -149,6 +151,40 @@ def test_cli_doctor_reports_missing_matugen(tmp_path: Path) -> None:
     )
 
     assert exit_code == 1
+
+
+def test_cli_doctor_reports_the_coverage_of_the_apps(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    descriptor = write_registration_source(tmp_path)
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    _ = make_fake_matugen(binaries, matugen_payload())
+    environ = {
+        "HOME": str(tmp_path),
+        "PATH": str(binaries),
+        "MATUGEN": str(binaries / "matugen"),
+    }
+
+    assert main(
+        [
+            "register",
+            "--app",
+            "caparazon-shell",
+            "--descriptor",
+            str(descriptor),
+        ],
+        environ=environ,
+    ) == 0
+    assert main(["generate"], environ=environ) == 0
+    assert main(["doctor"], environ=environ) == 0
+
+    output = capsys.readouterr().out
+    assert "cobertura: " in output
+    assert "materialgram: ok" in output
+    assert "obs: ok" in output
+    assert "equibop: ok" in output
 
 
 def test_cli_generate_applies_the_apps_with_the_token_palette(

@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Final
 
 from accent_theme.accent import accent_to_hex, read_kde_accent
 from accent_theme.apps import AppPaths, apply_app_integrations
+from accent_theme.apps.materialgram import resolve_template
+from accent_theme.apps.obs import resolve_base
 from accent_theme.live import LivePaths, apply_live_integrations
 from accent_theme.matugen import (
     MatugenError,
@@ -312,6 +314,31 @@ def _handle_watch(
     return 0
 
 
+def _app_coverage(environ: Mapping[str, str]) -> list[tuple[str, str]]:
+    """Devuelve el estado de temado de las apps que no son plantillas.
+
+    Son las cinco que el motor aplica por su cuenta: si una app no está
+    instalada en la máquina, su estado lo dice y no es un error.
+    """
+    app_paths = AppPaths.from_environment(environ)
+    live_paths = LivePaths.from_environment(environ)
+    template = resolve_template(app_paths.materialgram_template)
+    base = app_paths.obs_base
+    if not base.is_file():
+        base = resolve_base(app_paths.obs_base_fallback)
+    brave_installed = any(root.is_dir() for root in app_paths.brave_roots)
+    return [
+        ("brave", "ok" if brave_installed else "sin instalación"),
+        ("equibop", "ok"),
+        ("materialgram", "ok" if template.is_file() else "sin plantilla"),
+        ("obs", "ok" if base.is_file() else "sin tema base"),
+        (
+            "millennium",
+            "ok" if live_paths.millennium_config.is_file() else "sin config",
+        ),
+    ]
+
+
 def _handle_doctor(
     paths: ThemePaths,
     environ: Mapping[str, str],
@@ -342,7 +369,13 @@ def _handle_doctor(
         for problem in problems:
             _ = sys.stderr.write(f"problema: {problem}\n")
         return 1
+    coverage = _app_coverage(environ)
     _ = sys.stdout.write(f"doctor: {len(registrations)} integraciones correctas\n")
+    _ = sys.stdout.write(
+        "cobertura: "
+        + "; ".join(f"{app}: {state}" for app, state in coverage)
+        + "\n"
+    )
     return 0
 
 

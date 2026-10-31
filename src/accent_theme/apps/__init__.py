@@ -48,8 +48,7 @@ def apply_app_integrations(
         apply_obs(
             paths.obs_base,
             paths.obs_themes,
-            hsv.hue,
-            hsv.saturation,
-            hsv.value,
+            hsv,
+            paths.obs_base_fallback,
         ),
     )

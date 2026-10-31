@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 TEMPLATE_NAME = "materialgram.tdesktop-theme"
 
 
-def _template_path(installed: Path) -> Path:
+def resolve_template(installed: Path) -> Path:
     """Devuelve la plantilla, desde la instalación o desde el repo."""
     candidate = installed
     if candidate.is_file():
@@ -57,7 +57,7 @@ def apply_materialgram(
     palette: Mapping[str, str],
 ) -> AppResult:
     """Escribe el tema de Materialgram en todos sus destinos."""
-    source = _template_path(template_path)
+    source = resolve_template(template_path)
     if not source.is_file():
         return AppResult(app="materialgram", status="skipped", detail="sin plantilla")
 
