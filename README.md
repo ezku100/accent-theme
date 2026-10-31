@@ -14,6 +14,10 @@ configuración en sitios donde una plantilla no llega (un JSON que hay que
 fusionar con lo que ya había, un tema que se deriva de otro archivo). El
 motor las aplica directamente: Brave, EquiBop, Materialgram y OBS Studio.
 
+**La guía completa de uso está en [GUIA.md](GUIA.md)**: instalación paso a
+paso, qué fichero escribe cada app, cómo personalizar la paleta, cómo
+añadir una app nueva y qué hacer cuando algo no cambia de color.
+
 ## Requisitos
 
 | Dependencia | Paquete Debian | Uso |

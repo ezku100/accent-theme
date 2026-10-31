@@ -94,7 +94,7 @@ install_engine_source() {
       cp -a "$SOURCE_ROOT/$item/." "$ENGINE_DIR/$item/"
     fi
   done
-  for item in pyproject.toml README.md LICENSE; do
+  for item in pyproject.toml README.md GUIA.md LICENSE; do
     if [ -e "$SOURCE_ROOT/$item" ]; then
       cp -a "$SOURCE_ROOT/$item" "$ENGINE_DIR/$item"
     fi
