@@ -10,7 +10,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 from accent_theme.accent import accent_to_hex, read_kde_accent
 from accent_theme.apps import AppPaths, apply_app_integrations
@@ -25,10 +25,12 @@ from accent_theme.matugen import (
 from accent_theme.paths import ThemePaths
 from accent_theme.registry import (
     RegistryError,
+    TemplateRegistration,
     expand_home_path,
     parse_descriptor,
     rebuild_config,
 )
+from accent_theme.transform import boost_saturation
 from accent_theme.watcher import (
     DEFAULT_GENERATE_COMMAND,
     Watcher,
@@ -84,6 +86,12 @@ class CliError(RuntimeError):
     def unknown_command(cls, command: str) -> CliError:
         """Construye el error de comando no soportado."""
         return cls(f"comando desconocido: {command}")
+
+
+    @classmethod
+    def invalid_staging_json(cls, path: Path) -> CliError:
+        """Construye el error de un staging que no es un documento de tokens."""
+        return cls(f"{path}: se esperaba un objeto JSON de token a color")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -195,31 +203,31 @@ def _handle_register(
     if not descriptor_path.is_file():
         raise CliError.missing_descriptor(descriptor_path)
 
-    values = parse_descriptor(descriptor_path)
+    descriptor = parse_descriptor(descriptor_path)
     source_template = _find_source_template(
         descriptor_path,
-        values["input_path"],
+        descriptor.input_path,
         paths.home,
     )
     template_name = source_template.name
     installed_template = paths.templates_dir / app / template_name
-    output_path = expand_home_path(values["output_path"], paths.home)
+    output_path = expand_home_path(descriptor.output_path, paths.home)
 
     _atomic_copy(source_template, installed_template)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     installed_descriptor = paths.templates_d_dir / f"{app}.toml"
-    descriptor_contents = "\n".join(
-        (
-            f"name = {_toml_string(values['name'])}",
-            f"input_path = {_toml_string(str(installed_template))}",
-            f"output_path = {_toml_string(str(output_path))}",
-            "",
-        )
-    )
-    _atomic_write_text(installed_descriptor, descriptor_contents)
+    lines = [
+        f"name = {_toml_string(descriptor.name)}",
+        f"input_path = {_toml_string(str(installed_template))}",
+        f"output_path = {_toml_string(str(output_path))}",
+    ]
+    if descriptor.saturation is not None:
+        lines.append(f"saturation = {descriptor.saturation:g}")
+    lines.append("")
+    _atomic_write_text(installed_descriptor, "\n".join(lines))
     registrations = rebuild_config(paths)
     _ = sys.stdout.write(
-        f"registrado {values['name']} ({len(registrations)} integraciones activas)\n"
+        f"registrado {descriptor.name} ({len(registrations)} integraciones activas)\n"
     )
     return 0
 
@@ -228,6 +236,30 @@ def _handle_rebuild_config(paths: ThemePaths) -> int:
     registrations = rebuild_config(paths)
     _ = sys.stdout.write(f"config generado con {len(registrations)} integraciones\n")
     return 0
+
+
+def _apply_saturation(registration: TemplateRegistration) -> None:
+    """Reescribe el staging con la saturación boosteada antes de publicarlo."""
+    if registration.saturation is None:
+        return
+    staging = registration.staging_path
+    try:
+        raw = cast("object", json.loads(staging.read_text(encoding="utf-8")))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise CliError.invalid_staging_json(staging) from error
+    if not isinstance(raw, dict):
+        raise CliError.invalid_staging_json(staging)
+    document = cast("dict[str, object]", raw)
+    if not all(isinstance(value, str) for value in document.values()):
+        raise CliError.invalid_staging_json(staging)
+    boosted = boost_saturation(
+        cast("Mapping[str, str]", document),
+        registration.saturation,
+    )
+    _atomic_write_text(
+        staging,
+        json.dumps(boosted, ensure_ascii=False, indent=2) + "\n",
+    )
 
 
 def _handle_generate(
@@ -247,6 +279,7 @@ def _handle_generate(
     tokens = invoke_matugen(binary, accent, paths.matugen_config)
     for registration in registrations:
         if registration.staging_path.exists():
+            _apply_saturation(registration)
             _ = registration.staging_path.replace(registration.output_path)
     missing_outputs = [
         str(registration.output_path)
@@ -371,6 +404,20 @@ def _handle_doctor(
         return 1
     coverage = _app_coverage(environ)
     _ = sys.stdout.write(f"doctor: {len(registrations)} integraciones correctas\n")
+    boosted = [
+        registration
+        for registration in registrations
+        if registration.saturation is not None
+    ]
+    if boosted:
+        _ = sys.stdout.write(
+            "saturación: "
+            + "; ".join(
+                f"{registration.name}={registration.saturation:g}"
+                for registration in boosted
+            )
+            + "\n"
+        )
     _ = sys.stdout.write(
         "cobertura: "
         + "; ".join(f"{app}: {state}" for app, state in coverage)

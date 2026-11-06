@@ -121,6 +121,21 @@ accent-theme register --app mi-app --descriptor ./mi-app.toml
 El registro valida que el template exista, que el destino esté dentro del
 `HOME` y que no haya nombres duplicados.
 
+El descriptor acepta una clave opcional `saturation` (número `>= 1.0`): el
+motor multiplica la saturación HSV de cada color hexadecimal del template
+justo antes de publicarlo. Sirve para paletas sobre fondo negro, donde un
+acento poco saturado se pierde:
+
+```toml
+name = "mi-app-oled"
+input_path = "~/.config/accent-theme/templates/mi-app/mi-app-oled.json"
+output_path = "~/.cache/mi-app/colors-oled.json"
+saturation = 1.45
+```
+
+Los valores no hexadecimales y los grises neutros no cambian. Un motor
+anterior a esta clave rechaza el descriptor con `claves desconocidas`.
+
 ## Rutas
 
 ```text

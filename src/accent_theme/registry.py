@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 TEMPLATE_NAME_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 REQUIRED_KEYS: Final = frozenset({"name", "input_path", "output_path"})
+OPTIONAL_KEYS: Final = frozenset({"saturation"})
 
 
 class RegistryError(RuntimeError):
@@ -89,6 +90,21 @@ class RegistryError(RuntimeError):
         """Construye el error de una salida fuera del HOME."""
         return cls(f"{path}: output_path debe estar dentro de {home}: {output_path}")
 
+    @classmethod
+    def invalid_saturation(cls, path: Path, line_number: int) -> RegistryError:
+        """Construye el error de un multiplicador de saturación no válido."""
+        return cls(f"{path}:{line_number}: saturation debe ser un número >= 1.0")
+
+
+@dataclass(frozen=True, slots=True)
+class Descriptor:
+    """Descriptor TOML ya validado, con sus rutas sin expandir."""
+
+    name: str
+    input_path: str
+    output_path: str
+    saturation: float | None = None
+
 
 @dataclass(frozen=True, slots=True)
 class TemplateRegistration:
@@ -97,6 +113,7 @@ class TemplateRegistration:
     name: str
     input_path: Path
     output_path: Path
+    saturation: float | None = None
 
     @property
     def staging_path(self) -> Path:
@@ -111,14 +128,28 @@ class TemplateRegistration:
         )
 
 
-def parse_descriptor(path: Path) -> dict[str, str]:
-    """Parsea el subconjunto TOML soportado por los descriptores."""
+def _parse_saturation(path: Path, line_number: int, value: object) -> float:
+    """Valida el multiplicador de saturación de un descriptor."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise RegistryError.invalid_saturation(path, line_number)
+    saturation = float(value)
+    if saturation < 1.0:
+        raise RegistryError.invalid_saturation(path, line_number)
+    return saturation
+
+
+def _read_descriptor_lines(
+    path: Path,
+) -> tuple[dict[str, str], float | None, set[str]]:
+    """Lee y decodifica un descriptor, validando cada línea."""
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeError) as error:
         raise RegistryError.unreadable(path, error) from error
 
     values: dict[str, str] = {}
+    saturation: float | None = None
+    seen: set[str] = set()
     for line_number, line in enumerate(lines, start=1):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
@@ -135,19 +166,34 @@ def parse_descriptor(path: Path) -> dict[str, str]:
                 line_number,
                 normalized_key,
             ) from error
-        if not isinstance(value, str):
-            raise RegistryError.non_string_value(path, line_number, normalized_key)
-        if normalized_key in values:
+        if normalized_key in seen:
             raise RegistryError.duplicate_key(path, line_number, normalized_key)
-        values[normalized_key] = value
+        seen.add(normalized_key)
+        if normalized_key == "saturation":
+            saturation = _parse_saturation(path, line_number, value)
+        elif isinstance(value, str):
+            values[normalized_key] = value
+        else:
+            raise RegistryError.non_string_value(path, line_number, normalized_key)
+    return values, saturation, seen
+
+
+def parse_descriptor(path: Path) -> Descriptor:
+    """Parsea el subconjunto TOML soportado por los descriptores."""
+    values, saturation, seen = _read_descriptor_lines(path)
 
     missing = REQUIRED_KEYS.difference(values)
-    unknown = set(values).difference(REQUIRED_KEYS)
+    unknown = seen.difference(REQUIRED_KEYS | OPTIONAL_KEYS)
     if missing:
         raise RegistryError.missing_keys(path, missing)
     if unknown:
         raise RegistryError.unknown_keys(path, unknown)
-    return values
+    return Descriptor(
+        name=values["name"],
+        input_path=values["input_path"],
+        output_path=values["output_path"],
+        saturation=saturation,
+    )
 
 
 def expand_home_path(raw_path: str, home: Path) -> Path:
@@ -179,14 +225,14 @@ def load_registrations(paths: ThemePaths) -> tuple[TemplateRegistration, ...]:
     registrations: list[TemplateRegistration] = []
     names: dict[str, Path] = {}
     for descriptor_path in sorted(paths.templates_d_dir.glob("*.toml")):
-        values = parse_descriptor(descriptor_path)
-        name = values["name"]
+        descriptor = parse_descriptor(descriptor_path)
+        name = descriptor.name
         if TEMPLATE_NAME_PATTERN.fullmatch(name) is None:
             raise RegistryError.invalid_name(descriptor_path, name)
         if name in names:
             raise RegistryError.duplicate_name(descriptor_path, name, names[name])
-        input_path = expand_home_path(values["input_path"], paths.home)
-        output_path = expand_home_path(values["output_path"], paths.home)
+        input_path = expand_home_path(descriptor.input_path, paths.home)
+        output_path = expand_home_path(descriptor.output_path, paths.home)
         if not input_path.is_file():
             raise RegistryError.missing_input(descriptor_path, input_path)
         if not _is_within(output_path, paths.home):
@@ -197,6 +243,7 @@ def load_registrations(paths: ThemePaths) -> tuple[TemplateRegistration, ...]:
                 name=name,
                 input_path=input_path,
                 output_path=output_path,
+                saturation=descriptor.saturation,
             )
         )
     return tuple(registrations)

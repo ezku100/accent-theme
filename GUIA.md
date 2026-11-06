@@ -347,6 +347,15 @@ input_path = "~/.config/accent-theme/templates/mi-app/mi-app-matugen.json"
 output_path = "~/.cache/mi-app/colors.json"
 ```
 
+   El descriptor admite una cuarta clave opcional, `saturation` (número
+   `>= 1.0`), que multiplica la saturación HSV de cada color hexadecimal del
+   template antes de publicarlo. Úsala cuando la paleta vaya sobre un fondo
+   muy oscuro y el acento necesite más viveza; los grises neutros no cambian:
+
+```toml
+saturation = 1.45
+```
+
 3. Añade `mi-app` a `BASE_APPS` en `install.sh` y ejecuta
    `./install.sh instalar` para registrarla.
 

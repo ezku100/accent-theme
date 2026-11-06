@@ -168,22 +168,22 @@ def test_base_descriptors_are_complete() -> None:
         descriptor = DESCRIPTORS_DIR / f"{app}.toml"
         assert descriptor.is_file(), f"falta el descriptor de {app}"
         values = parse_descriptor(descriptor)
-        assert values["name"]
-        assert values["input_path"].startswith("~/.config/accent-theme/templates/")
-        assert values["output_path"].startswith("~/")
+        assert values.name
+        assert values.input_path.startswith("~/.config/accent-theme/templates/")
+        assert values.output_path.startswith("~/")
 
 
 def test_every_descriptor_points_to_an_installed_template() -> None:
     for app in BASE_APPS:
         values = parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml")
-        template_name = Path(values["input_path"]).name
+        template_name = Path(values.input_path).name
         template = TEMPLATES_DIR / app / template_name
         assert template.is_file(), f"falta el template {template}"
 
 
 def test_every_template_has_a_descriptor() -> None:
     referenced = {
-        Path(parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml")["input_path"]).name
+        Path(parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml").input_path).name
         for app in BASE_APPS
     }
     shipped = {
@@ -198,7 +198,7 @@ def test_every_template_has_a_descriptor() -> None:
 
 def test_descriptor_names_are_unique() -> None:
     names = [
-        parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml")["name"] for app in BASE_APPS
+        parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml").name for app in BASE_APPS
     ]
 
     assert len(set(names)) == len(names)
@@ -340,7 +340,7 @@ def test_generated_config_lists_every_base_app(tmp_path: Path) -> None:
         tmp_path / "home" / ".config" / "accent-theme" / "matugen.toml"
     ).read_text(encoding="utf-8")
     names = [
-        parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml")["name"] for app in BASE_APPS
+        parse_descriptor(DESCRIPTORS_DIR / f"{app}.toml").name for app in BASE_APPS
     ]
 
     for name in names:

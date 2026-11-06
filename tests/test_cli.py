@@ -4,9 +4,10 @@ import json
 import stat
 import sys
 import tomllib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from accent_theme.cli import main
+from accent_theme.transform import boost_saturation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,6 +27,26 @@ def write_registration_source(tmp_path: Path) -> Path:
         """name = "quickshell-matugen"
 input_path = "~/.config/accent-theme/templates/caparazon-shell/quickshell-matugen.json"
 output_path = "~/.cache/caparazon/colors.json"
+""",
+        encoding="utf-8",
+    )
+    return descriptor
+
+
+def write_saturated_registration_source(tmp_path: Path) -> Path:
+    """Descriptor como el de OLED: plantilla propia y saturación boosteada."""
+    source = tmp_path / "integration" / "theme"
+    source.mkdir(parents=True)
+    template = source / "quickshell-oled.json"
+    _ = template.write_text(
+        '{"primary": "{{colors.primary.dark.hex}}"}\n', encoding="utf-8"
+    )
+    descriptor = source / "accent-theme-oled.toml"
+    _ = descriptor.write_text(
+        """name = "caparazon-shell-oled"
+input_path = "~/.config/accent-theme/templates/oled/quickshell-oled.json"
+output_path = "~/.cache/caparazon/colors-oled.json"
+saturation = 1.45
 """,
         encoding="utf-8",
     )
@@ -69,6 +90,34 @@ for template in config.get("templates", {{}}).values():
     output = pathlib.Path(template["output_path"])
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text({payload!r})
+print({payload!r})
+""",
+        encoding="utf-8",
+    )
+    binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+    return binary
+
+
+def make_fake_matugen_output(
+    directory: Path,
+    document: dict[str, str],
+    payload: str,
+) -> Path:
+    """Crea un Matugen falso que escribe un documento renderizado en cada salida.
+
+    ``payload`` es lo que imprime por stdout, que es lo que el motor parsea
+    como roles del esquema.
+    """
+    binary = directory / "matugen"
+    contents = json.dumps(document)
+    _ = binary.write_text(
+        f"""#!{sys.executable}
+import pathlib, sys, tomllib
+config = tomllib.loads(pathlib.Path(sys.argv[sys.argv.index("-c") + 1]).read_text())
+for template in config.get("templates", {{}}).values():
+    output = pathlib.Path(template["output_path"])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text({contents!r})
 print({payload!r})
 """,
         encoding="utf-8",
@@ -281,6 +330,71 @@ def test_cli_watch_reports_missing_inotifywait(tmp_path: Path) -> None:
     )
 
     assert exit_code == 1
+
+
+def test_cli_register_keeps_the_saturation_key(tmp_path: Path) -> None:
+    descriptor = write_saturated_registration_source(tmp_path)
+
+    assert main(
+        [
+            "register",
+            "--app",
+            "caparazon-shell-oled",
+            "--descriptor",
+            str(descriptor),
+        ],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    ) == 0
+
+    installed = (
+        tmp_path
+        / ".config"
+        / "accent-theme"
+        / "templates.d"
+        / "caparazon-shell-oled.toml"
+    )
+    parsed = tomllib.loads(installed.read_text(encoding="utf-8"))
+    assert parsed["saturation"] == 1.45
+
+
+def test_cli_generate_boosts_the_saturation_of_tagged_templates(
+    tmp_path: Path,
+) -> None:
+    descriptor = write_saturated_registration_source(tmp_path)
+    assert main(
+        [
+            "register",
+            "--app",
+            "caparazon-shell-oled",
+            "--descriptor",
+            str(descriptor),
+        ],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    ) == 0
+
+    document = {"primary": "#84cfff", "surface": "#000000"}
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    _ = make_fake_matugen_output(binaries, document, matugen_payload())
+    output = tmp_path / ".cache" / "caparazon" / "colors-oled.json"
+
+    exit_code = main(
+        ["generate"],
+        environ={
+            "HOME": str(tmp_path),
+            "PATH": str(binaries),
+            "MATUGEN": str(binaries / "matugen"),
+        },
+    )
+
+    published = cast(
+        "dict[str, str]",
+        json.loads(output.read_text(encoding="utf-8")),
+    )
+    assert exit_code == 0
+    assert published == boost_saturation(document, 1.45)
+    assert published["primary"] != document["primary"]
+    assert published["surface"] == "#000000"
 
 
 def test_cli_generate_publishes_the_output_atomically(tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ from accent_theme.registry import (
     RegistryError,
     TemplateRegistration,
     load_registrations,
+    parse_descriptor,
     rebuild_config,
     render_matugen_config,
 )
@@ -26,6 +27,13 @@ def make_paths(tmp_path: Path) -> ThemePaths:
             "XDG_CACHE_HOME": str(tmp_path / "cache"),
         }
     )
+
+
+def write_raw_descriptor(paths: ThemePaths, filename: str, contents: str) -> Path:
+    paths.templates_d_dir.mkdir(parents=True, exist_ok=True)
+    descriptor = paths.templates_d_dir / filename
+    _ = descriptor.write_text(contents, encoding="utf-8")
+    return descriptor
 
 
 def write_descriptor(
@@ -195,7 +203,69 @@ def test_staging_path_keeps_the_final_extension(tmp_path: Path) -> None:
     assert registration.staging_path == tmp_path / "colors.staging.json"
 
 
-def test_staging_path_keeps_non_json_extensions(tmp_path: Path) -> None:
+def test_descriptor_saturation_is_optional(tmp_path: Path) -> None:
+    paths = make_paths(tmp_path)
+    descriptor = write_raw_descriptor(
+        paths,
+        "app.toml",
+        """name = "app"
+input_path = "in.json"
+output_path = "out.json"
+""",
+    )
+
+    assert parse_descriptor(descriptor).saturation is None
+
+
+def test_descriptor_saturation_is_read(tmp_path: Path) -> None:
+    paths = make_paths(tmp_path)
+    descriptor = write_raw_descriptor(
+        paths,
+        "app.toml",
+        """name = "app"
+input_path = "in.json"
+output_path = "out.json"
+saturation = 1.45
+""",
+    )
+
+    parsed = parse_descriptor(descriptor)
+
+    assert parsed.saturation == 1.45
+    assert parsed.name == "app"
+
+
+def test_descriptor_saturation_below_one_is_rejected(tmp_path: Path) -> None:
+    paths = make_paths(tmp_path)
+    descriptor = write_raw_descriptor(
+        paths,
+        "app.toml",
+        """name = "app"
+input_path = "in.json"
+output_path = "out.json"
+saturation = 0.8
+""",
+    )
+
+    with pytest.raises(RegistryError, match="saturation"):
+        _ = parse_descriptor(descriptor)
+
+
+def test_descriptor_saturation_must_be_a_number(tmp_path: Path) -> None:
+    paths = make_paths(tmp_path)
+    descriptor = write_raw_descriptor(
+        paths,
+        "app.toml",
+        """name = "app"
+input_path = "in.json"
+output_path = "out.json"
+saturation = "alta"
+""",
+    )
+
+    with pytest.raises(RegistryError, match="saturation"):
+        _ = parse_descriptor(descriptor)
+
     registration = TemplateRegistration(
         name="kitty-matugen",
         input_path=tmp_path / "kitty-matugen.conf",
