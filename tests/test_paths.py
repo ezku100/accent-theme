@@ -31,6 +31,13 @@ def test_paths_follow_xdg_environment(tmp_path: Path) -> None:
     assert paths.user_service == (
         tmp_path / "config" / "systemd" / "user" / "accent-theme.service"
     )
+    assert paths.kcolor_scheme == tmp_path / "data" / "color-schemes" / "Matugen.colors"
+    assert paths.kde_globals_backup == (
+        tmp_path / "cache" / "accent-theme" / "kdeglobals-colors.backup"
+    )
+    assert paths.kde_globals_applied == (
+        tmp_path / "cache" / "accent-theme" / "kdeglobals-colors.applied"
+    )
 
 
 def test_paths_use_home_defaults_when_xdg_is_unset(tmp_path: Path) -> None:
