@@ -10,27 +10,22 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, cast
+from typing import TYPE_CHECKING, Final
 
-from accent_theme.accent import accent_to_hex, read_kde_accent
-from accent_theme.apps import AppPaths, apply_app_integrations
+from accent_theme.apps import AppPaths
 from accent_theme.apps.materialgram import resolve_template
 from accent_theme.apps.obs import resolve_base
-from accent_theme.live import LivePaths, apply_live_integrations
-from accent_theme.matugen import (
-    MatugenError,
-    find_matugen,
-    invoke_matugen,
-)
+from accent_theme.generation import GenerationError, generate_once
+from accent_theme.live import LivePaths
+from accent_theme.matugen import MatugenError, find_matugen
 from accent_theme.paths import ThemePaths
 from accent_theme.registry import (
     RegistryError,
-    TemplateRegistration,
     expand_home_path,
     parse_descriptor,
     rebuild_config,
 )
-from accent_theme.transform import boost_saturation
+from accent_theme.sources import SourceError
 from accent_theme.watcher import (
     DEFAULT_GENERATE_COMMAND,
     Watcher,
@@ -101,9 +96,19 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    _ = subparsers.add_parser(
+    generate = subparsers.add_parser(
         "generate",
-        help="genera la paleta con el acento actual de KDE",
+        help="genera la paleta desde la fuente de color resuelta",
+    )
+    _ = generate.add_argument(
+        "--source",
+        default="auto",
+        help="fuente de color: auto, kde o waywallen (por defecto auto)",
+    )
+    _ = generate.add_argument(
+        "--once",
+        action="store_true",
+        help="ejecuta una sola generación y termina (para timers)",
     )
 
     _ = subparsers.add_parser(
@@ -132,9 +137,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="comprueba dependencias, registro y outputs",
     )
 
-    _ = subparsers.add_parser(
+    watch = subparsers.add_parser(
         "watch",
-        help="vigila AccentColor y regenera la paleta cuando cambia",
+        help="vigila la fuente de color y regenera la paleta cuando cambia",
+    )
+    _ = watch.add_argument(
+        "--source",
+        default="auto",
+        help="fuente de color: auto, kde o waywallen (por defecto auto)",
     )
     return parser
 
@@ -238,86 +248,37 @@ def _handle_rebuild_config(paths: ThemePaths) -> int:
     return 0
 
 
-def _apply_saturation(registration: TemplateRegistration) -> None:
-    """Reescribe el staging con la saturación boosteada antes de publicarlo."""
-    if registration.saturation is None:
-        return
-    staging = registration.staging_path
-    try:
-        raw = cast("object", json.loads(staging.read_text(encoding="utf-8")))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise CliError.invalid_staging_json(staging) from error
-    if not isinstance(raw, dict):
-        raise CliError.invalid_staging_json(staging)
-    document = cast("dict[str, object]", raw)
-    if not all(isinstance(value, str) for value in document.values()):
-        raise CliError.invalid_staging_json(staging)
-    boosted = boost_saturation(
-        cast("Mapping[str, str]", document),
-        registration.saturation,
-    )
-    _atomic_write_text(
-        staging,
-        json.dumps(boosted, ensure_ascii=False, indent=2) + "\n",
-    )
-
-
 def _handle_generate(
     paths: ThemePaths,
     environ: Mapping[str, str],
+    source_request: str,
 ) -> int:
-    binary = find_matugen(environ)
-    if binary is None:
-        raise CliError.missing_matugen()
+    """Genera, publica y reporta una paleta desde la fuente solicitada."""
+    result = generate_once(paths, environ, source_request)
+    for failed in (item for item in result.app_results if item.status == "failed"):
+        _ = sys.stderr.write(f"app fallida {failed.app}: {failed.detail}\n")
+    for failed in (item for item in result.live_results if item.status == "failed"):
+        _ = sys.stderr.write(f"recarga fallida {failed.app}: {failed.detail}\n")
 
-    registrations = rebuild_config(paths)
-    for registration in registrations:
-        registration.output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    kdeglobals = paths.config_home.parent / "kdeglobals"
-    accent = accent_to_hex(read_kde_accent(kdeglobals, environ))
-    tokens = invoke_matugen(binary, accent, paths.matugen_config)
-    for registration in registrations:
-        if registration.staging_path.exists():
-            _apply_saturation(registration)
-            _ = registration.staging_path.replace(registration.output_path)
-    missing_outputs = [
-        str(registration.output_path)
-        for registration in registrations
-        if not registration.output_path.is_file()
-    ]
-    if missing_outputs:
-        raise CliError.missing_outputs(missing_outputs)
-
-    app_results = apply_app_integrations(
-        AppPaths.from_environment(environ),
-        read_kde_accent(kdeglobals, environ),
-        tokens.app_environment(),
-    )
-    live_results = apply_live_integrations(
-        LivePaths.from_environment(environ),
-        accent,
-        environ,
-    )
-    failed_apps = [result for result in app_results if result.status == "failed"]
-    failed_live = [result for result in live_results if result.status == "failed"]
-    for result in failed_apps:
-        _ = sys.stderr.write(f"app fallida {result.app}: {result.detail}\n")
-    for result in failed_live:
-        _ = sys.stderr.write(f"recarga fallida {result.app}: {result.detail}\n")
-
+    source = result.source.kind
+    color = result.source_color
+    roles = len(result.tokens.colors)
     _ = sys.stdout.write(
-        f"paleta generada con {accent}; {len(tokens.colors)} roles disponibles\n"
+        f"paleta generada desde {source} con {color}; {roles} roles disponibles\n"
     )
     _ = sys.stdout.write(
         "apps: "
-        + "; ".join(f"{result.app}: {result.status}" for result in app_results)
+        + "; ".join(f"{item.app}: {item.status}" for item in result.app_results)
         + "\n"
     )
     _ = sys.stdout.write(
         "recargas: "
-        + "; ".join(f"{result.app}: {result.status}" for result in live_results)
+        + "; ".join(f"{item.app}: {item.status}" for item in result.live_results)
         + "\n"
+    )
+    state = result.state
+    _ = sys.stdout.write(
+        f"estado: {state.source} {state.reference} {state.status}\n"
     )
     return 0
 
@@ -328,17 +289,20 @@ def _watcher_paths(paths: ThemePaths) -> WatcherPaths:
         kdeglobals=paths.config_home.parent / "kdeglobals",
         cache_path=paths.cache_home / "last-watch-accent",
         lock_path=paths.cache_home / "feeder.lock",
+        waywallen_config=paths.waywallen_config,
     )
 
 
 def _handle_watch(
     paths: ThemePaths,
     environ: Mapping[str, str],
+    source_request: str,
 ) -> int:
     watcher = Watcher(
         paths=_watcher_paths(paths),
         environ=environ,
         generate_command=DEFAULT_GENERATE_COMMAND,
+        source_request=source_request,
     )
     try:
         _ = watcher.watch()
@@ -436,6 +400,14 @@ def _option_value(arguments: Sequence[str], option: str) -> str:
     raise CliError.missing_option_value(option)
 
 
+def _option_value_or(arguments: Sequence[str], option: str, default: str) -> str:
+    """Devuelve el valor de una opción o el valor por defecto si no está."""
+    try:
+        return _option_value(arguments, option)
+    except CliError:
+        return default
+
+
 def _dispatch(
     command: str,
     argument_list: Sequence[str],
@@ -445,9 +417,11 @@ def _dispatch(
     """Ejecuta el subcomando solicitado."""
     match command:
         case "generate":
-            return _handle_generate(paths, environ)
+            source_request = _option_value_or(argument_list, "--source", "auto")
+            return _handle_generate(paths, environ, source_request)
         case "watch":
-            return _handle_watch(paths, environ)
+            watch_source = _option_value_or(argument_list, "--source", "auto")
+            return _handle_watch(paths, environ, watch_source)
         case "doctor":
             return _handle_doctor(paths, environ)
         case "rebuild-config":
@@ -477,6 +451,13 @@ def main(
     command = argument_list[0]
     try:
         return _dispatch(command, argument_list, paths, effective_environ)
-    except (CliError, MatugenError, RegistryError, OSError) as error:
+    except (
+        CliError,
+        GenerationError,
+        MatugenError,
+        RegistryError,
+        SourceError,
+        OSError,
+    ) as error:
         _ = sys.stderr.write(f"accent-theme: {error}\n")
         return 1

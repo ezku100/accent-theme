@@ -4,11 +4,14 @@ import stat
 import time
 from typing import TYPE_CHECKING
 
+import pytest
+
 from accent_theme.watcher import (
     DEFAULT_GENERATE_COMMAND,
     LOCK_BUSY_EXIT_CODE,
     WATCH_EVENTS,
     Watcher,
+    WatcherError,
     WatcherPaths,
 )
 
@@ -260,3 +263,94 @@ def test_accent_change_during_a_run_is_regenerated(tmp_path: Path) -> None:
 
     assert watcher.wait_idle(timeout=5.0) is True
     assert watcher.cached_accent() == "#ff0000"
+
+
+def write_waywallen_config(tmp_path: Path, wallpaper_id: str = "27") -> Path:
+    """Crea el ``config.toml`` de Waywallen con un wallpaper activo."""
+    config = tmp_path / "waywallen" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    _ = config.write_text(
+        f'[global]\nlast_wallpaper = "{wallpaper_id}"\n',
+        encoding="utf-8",
+    )
+    return config
+
+
+def make_waywallen_watcher(
+    tmp_path: Path,
+    *,
+    environ: Mapping[str, str],
+    config: Path | None,
+    generate_command: Sequence[str] = ("true",),
+    source_request: str = "auto",
+) -> Watcher:
+    paths = WatcherPaths(
+        kdeglobals=tmp_path / "kdeglobals",
+        cache_path=tmp_path / "cache" / "last-watch-accent",
+        lock_path=tmp_path / "cache" / "feeder.lock",
+        waywallen_config=config,
+    )
+    return Watcher(
+        paths=paths,
+        environ=environ,
+        generate_command=generate_command,
+        source_request=source_request,
+    )
+
+
+def test_watch_path_follows_the_resolved_source(tmp_path: Path) -> None:
+    config = write_waywallen_config(tmp_path)
+    watcher = make_waywallen_watcher(
+        tmp_path,
+        environ={**make_environment(tmp_path), "XDG_CURRENT_DESKTOP": "niri"},
+        config=config,
+    )
+
+    assert watcher.resolved_kind() == "waywallen"
+    assert watcher.watch_path() == config
+    assert watcher.current_value() == "27"
+    assert watcher.is_relevant(str(config)) is True
+    assert watcher.is_relevant(str(tmp_path / "kdeglobals")) is False
+
+
+def test_waywallen_source_requires_a_config_path(tmp_path: Path) -> None:
+    watcher = make_waywallen_watcher(
+        tmp_path,
+        environ={"XDG_CURRENT_DESKTOP": "niri", "PATH": ""},
+        config=None,
+    )
+
+    with pytest.raises(WatcherError):
+        _ = watcher.watch_path()
+
+
+def test_waywallen_regeneration_passes_source_and_once(tmp_path: Path) -> None:
+    environ = make_environment(tmp_path)
+    log = tmp_path / "args.log"
+    make_script(tmp_path / "bin" / "accent-theme", f'echo "$@" >> {log}')
+    config = write_waywallen_config(tmp_path)
+    watcher = make_waywallen_watcher(
+        tmp_path,
+        environ={**environ, "XDG_CURRENT_DESKTOP": "niri"},
+        config=config,
+        generate_command=DEFAULT_GENERATE_COMMAND,
+    )
+
+    action = watcher.handle_event(str(config))
+
+    assert action == "regenerated"
+    assert log.read_text(encoding="utf-8").strip() == (
+        "generate --source waywallen --once"
+    )
+
+
+def test_kde_source_keeps_watching_kdeglobals(tmp_path: Path) -> None:
+    config = write_waywallen_config(tmp_path)
+    watcher = make_waywallen_watcher(
+        tmp_path,
+        environ={**make_environment(tmp_path), "XDG_CURRENT_DESKTOP": "KDE"},
+        config=config,
+    )
+
+    assert watcher.resolved_kind() == "kde"
+    assert watcher.watch_path() == tmp_path / "kdeglobals"

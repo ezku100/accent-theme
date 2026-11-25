@@ -11,10 +11,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
 from accent_theme.accent import accent_to_hex, read_accent
+from accent_theme.sources.resolver import resolve_source_kind
+from accent_theme.sources.waywallen import read_last_wallpaper
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
     from typing import TextIO
+
+    from accent_theme.sources.models import SourceKind
 
 WATCH_EVENTS: Final = "modify,close_write,moved_to"
 LOCK_BUSY_EXIT_CODE: Final = 75
@@ -31,6 +35,12 @@ class WatcherError(RuntimeError):
         """Construye el error de dependencia ausente."""
         return cls(f"{name} no encontrado; instálalo para usar accent-theme watch")
 
+    @classmethod
+    def missing_source_path(cls, kind: str) -> WatcherError:
+        """Construye el error de una fuente sin ruta que vigilar."""
+        message = f"la fuente {kind} no tiene una ruta de configuración definida"
+        return cls(message)
+
 
 @dataclass(frozen=True, slots=True)
 class WatcherPaths:
@@ -39,6 +49,7 @@ class WatcherPaths:
     kdeglobals: Path
     cache_path: Path
     lock_path: Path
+    waywallen_config: Path | None = None
 
 
 @dataclass(slots=True)
@@ -57,12 +68,42 @@ class Watcher:
     paths: WatcherPaths
     environ: Mapping[str, str]
     generate_command: Sequence[str] = DEFAULT_GENERATE_COMMAND
+    source_request: str = "auto"
     settle_seconds: float = SETTLE_SECONDS
     state: GenerationState = field(default_factory=GenerationState, compare=False)
 
-    def current_accent(self) -> str:
-        """Devuelve el acento actual de KDE en hexadecimal."""
+    def resolved_kind(self) -> SourceKind:
+        """Devuelve el tipo de fuente concreto que corresponde vigilar."""
+        return resolve_source_kind(self.source_request, self.environ)
+
+    def watch_path(self) -> Path:
+        """Devuelve el archivo cuyo cambio dispara una regeneración."""
+        kind = self.resolved_kind()
+        if kind == "waywallen":
+            config = self.paths.waywallen_config
+            if config is None:
+                raise WatcherError.missing_source_path(kind)
+            return config
+        return self.paths.kdeglobals
+
+    def current_value(self) -> str:
+        """Devuelve el valor observable de la fuente: acento o wallpaper."""
+        if self.resolved_kind() == "waywallen":
+            return read_last_wallpaper(self.watch_path())
         return accent_to_hex(read_accent(self.paths.kdeglobals))
+
+    def current_accent(self) -> str:
+        """Devuelve el valor actual de la fuente en forma canónica."""
+        return self.current_value()
+
+    def effective_generate_command(self) -> list[str]:
+        """Añade la fuente resuelta y ``--once`` al comando de generación."""
+        command = list(self.generate_command)
+        if "--source" not in command:
+            command.extend(("--source", self.resolved_kind()))
+        if "--once" not in command:
+            command.append("--once")
+        return command
 
     def cached_accent(self) -> str | None:
         """Devuelve el acento de la última regeneración exitosa."""
@@ -93,7 +134,7 @@ class Watcher:
 
     def inotify_command(self) -> list[str]:
         """Construye el comando ``inotifywait`` con los directorios vigilados."""
-        directories = [self.paths.kdeglobals.parent]
+        directories = [self.watch_path().parent]
         return [
             self._which("inotifywait"),
             "-m",
@@ -136,17 +177,17 @@ class Watcher:
         KDE guarda ``kdeglobals`` de forma atómica y en el mismo directorio
         deja ``kdeglobals.lock`` y temporales: solo el archivo exacto cuenta.
         """
-        return Path(raw_path) == self.paths.kdeglobals
+        return Path(raw_path) == self.watch_path()
 
     def handle_event(self, raw_path: str) -> str:
         """Procesa un evento de inotify y devuelve la acción realizada."""
         if not self.is_relevant(raw_path):
             return "ignored"
-        current = self.current_accent()
+        current = self.current_value()
         if not self.accent_changed(current):
             return "unchanged"
 
-        returncode = self._run(self.locked_command(self.generate_command))
+        returncode = self._run(self.locked_command(self.effective_generate_command()))
         if returncode == LOCK_BUSY_EXIT_CODE:
             return "locked"
         if returncode != 0:

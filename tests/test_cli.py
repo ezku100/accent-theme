@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import stat
 import sys
 import tomllib
@@ -430,3 +431,129 @@ def test_cli_generate_publishes_the_output_atomically(tmp_path: Path) -> None:
     assert output.is_file()
     assert output.read_text(encoding="utf-8").strip() == payload.strip()
     assert not staging.exists()
+
+
+def matugen_payload_with_source_color() -> str:
+    """Payload role-first con el color de origen que exige la fuente Waywallen."""
+    document = cast("dict[str, object]", json.loads(matugen_payload()))
+    colors = cast("dict[str, object]", document["colors"])
+    colors["source_color"] = {"dark": {"color": "#ec1413"}}
+    return json.dumps(document)
+
+
+def write_waywallen_fixture(tmp_path: Path) -> None:
+    """Crea config.toml, base de datos y preview de Waywallen bajo HOME."""
+    root = tmp_path / ".var" / "app" / "org.waywallen.waywallen"
+    config = root / "config" / "waywallen" / "config.toml"
+    config.parent.mkdir(parents=True)
+    _ = config.write_text('[global]\nlast_wallpaper = "27"\n', encoding="utf-8")
+    database = root / "data" / "waywallen" / "waywallen-v2.db"
+    database.parent.mkdir(parents=True)
+    library = tmp_path / "library"
+    preview = library / "preview.gif"
+    preview.parent.mkdir(parents=True)
+    _ = preview.write_bytes(b"GIF89a")
+    connection = sqlite3.connect(database)
+    try:
+        _ = connection.execute(
+            "CREATE TABLE library (id INTEGER PRIMARY KEY, path TEXT NOT NULL)"
+        )
+        item_schema = (
+            "CREATE TABLE item (id INTEGER PRIMARY KEY, "
+            "library_id INTEGER NOT NULL, preview_path TEXT)"
+        )
+        _ = connection.execute(item_schema)
+        _ = connection.execute(
+            "INSERT INTO library (id, path) VALUES (1, ?)",
+            (str(library),),
+        )
+        _ = connection.execute(
+            'INSERT INTO item (id, library_id, preview_path) VALUES ("27", 1, ?)',
+            ("preview.gif",),
+        )
+        _ = connection.commit()
+    finally:
+        connection.close()
+
+
+def test_cli_generate_with_waywallen_source_publishes_niri_state(
+    tmp_path: Path,
+) -> None:
+    descriptor = write_registration_source(tmp_path)
+    assert (
+        main(
+            ["register", "--app", "caparazon-shell", "--descriptor", str(descriptor)],
+            environ={"HOME": str(tmp_path), "PATH": ""},
+        )
+        == 0
+    )
+    write_waywallen_fixture(tmp_path)
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    _ = make_fake_matugen(binaries, matugen_payload_with_source_color())
+
+    exit_code = main(
+        ["generate", "--source", "waywallen"],
+        environ={
+            "HOME": str(tmp_path),
+            "PATH": str(binaries),
+            "MATUGEN": str(binaries / "matugen"),
+        },
+    )
+
+    state = cast(
+        "dict[str, object]",
+        json.loads(
+            (tmp_path / ".cache" / "accent-theme" / "niri-state.json").read_text(
+                encoding="utf-8"
+            )
+        ),
+    )
+    assert exit_code == 0
+    assert state["source"] == "waywallen"
+    assert state["wallpaperId"] == "27"
+    assert state["sourceColor"] == "#ec1413"
+
+
+def test_cli_generate_accepts_the_once_flag(tmp_path: Path) -> None:
+    descriptor = write_registration_source(tmp_path)
+    assert (
+        main(
+            ["register", "--app", "caparazon-shell", "--descriptor", str(descriptor)],
+            environ={"HOME": str(tmp_path), "PATH": ""},
+        )
+        == 0
+    )
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    _ = make_fake_matugen(binaries, matugen_payload())
+
+    assert (
+        main(
+            ["generate", "--once", "--source", "kde"],
+            environ={
+                "HOME": str(tmp_path),
+                "PATH": str(binaries),
+                "MATUGEN": str(binaries / "matugen"),
+            },
+        )
+        == 0
+    )
+
+
+def test_cli_generate_rejects_an_unknown_source(tmp_path: Path) -> None:
+    exit_code = main(
+        ["generate", "--source", "otra"],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    )
+
+    assert exit_code == 1
+
+
+def test_cli_watch_accepts_a_source_option(tmp_path: Path) -> None:
+    exit_code = main(
+        ["watch", "--source", "waywallen"],
+        environ={"HOME": str(tmp_path), "PATH": ""},
+    )
+
+    assert exit_code == 1
