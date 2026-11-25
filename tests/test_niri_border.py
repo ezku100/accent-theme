@@ -36,6 +36,13 @@ def test_the_snippet_turns_the_border_on_with_the_accent() -> None:
     assert 'active-color "#0b79c2"' in contents
 
 
+def test_the_border_is_drawn_thin() -> None:
+    """El borde marca la ventana activa con dos píxeles, sin tapar el contenido."""
+    contents = render_border(border_colors(Accent(11, 121, 194)))
+
+    assert "\n        width 2\n" in contents
+
+
 def test_writing_the_border_creates_the_file_and_its_directory(
     tmp_path: Path,
 ) -> None:

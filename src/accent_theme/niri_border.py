@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-BORDER_WIDTH: Final = 4
+BORDER_WIDTH: Final = 2
 INACTIVE_BORDER_FACTOR: Final = 0.4
 URGENT_BORDER: Final = "#cc4444"
 
