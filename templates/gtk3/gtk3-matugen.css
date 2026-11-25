@@ -1,0 +1,25 @@
+/* Generado por matugen (semilla: wallpaper) — no editar a mano. */
+@define-color accent_color {{colors.primary.dark.hex}};
+@define-color accent_bg_color {{colors.primary.dark.hex}};
+@define-color accent_fg_color {{colors.on_primary.dark.hex}};
+@define-color window_bg_color {{colors.surface.dark.hex}};
+@define-color window_fg_color {{colors.on_surface.dark.hex}};
+@define-color view_bg_color {{colors.surface_container_lowest.dark.hex}};
+@define-color view_fg_color {{colors.on_surface.dark.hex}};
+@define-color headerbar_bg_color {{colors.surface_container_low.dark.hex}};
+@define-color headerbar_fg_color {{colors.on_surface.dark.hex}};
+@define-color card_bg_color {{colors.surface_container.dark.hex}};
+@define-color card_fg_color {{colors.on_surface.dark.hex}};
+@define-color popover_bg_color {{colors.surface_container.dark.hex}};
+@define-color popover_fg_color {{colors.on_surface.dark.hex}};
+@define-color dialog_bg_color {{colors.surface_container_low.dark.hex}};
+@define-color dialog_fg_color {{colors.on_surface.dark.hex}};
+@define-color sidebar_bg_color {{colors.surface_container_low.dark.hex}};
+@define-color sidebar_fg_color {{colors.on_surface.dark.hex}};
+@define-color destructive_color {{colors.error.dark.hex}};
+@define-color destructive_bg_color {{colors.error.dark.hex}};
+@define-color destructive_fg_color {{colors.on_error.dark.hex}};
+@define-color success_color {{colors.tertiary.dark.hex}};
+@define-color warning_color {{colors.secondary.dark.hex}};
+@define-color borders {{colors.outline.dark.hex}};
+@define-color text_view_bg {{colors.surface_container_lowest.dark.hex}};

@@ -1,0 +1,3 @@
+name = "gtk4-matugen"
+input_path = "~/.config/accent-theme/templates/gtk4/gtk4-matugen.css"
+output_path = "~/.config/gtk-4.0/colors.css"
