@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
 from accent_theme.accent import accent_to_hex, read_accent
+from accent_theme.sources.models import SourceError
 from accent_theme.sources.resolver import resolve_source_kind
 from accent_theme.sources.waywallen import read_last_wallpaper
 
@@ -74,7 +75,11 @@ class Watcher:
 
     def resolved_kind(self) -> SourceKind:
         """Devuelve el tipo de fuente concreto que corresponde vigilar."""
-        return resolve_source_kind(self.source_request, self.environ)
+        return resolve_source_kind(
+            self.source_request,
+            self.environ,
+            self.paths.waywallen_config,
+        )
 
     def watch_path(self) -> Path:
         """Devuelve el archivo cuyo cambio dispara una regeneración."""
@@ -180,10 +185,18 @@ class Watcher:
         return Path(raw_path) == self.watch_path()
 
     def handle_event(self, raw_path: str) -> str:
-        """Procesa un evento de inotify y devuelve la acción realizada."""
+        """Procesa un evento de inotify y devuelve la acción realizada.
+
+        Una configuración ilegible (Waywallen la reescribe al cambiar de
+        wallpaper) se reporta como fallo sin tumbar el watcher: el siguiente
+        evento volverá a intentarlo.
+        """
         if not self.is_relevant(raw_path):
             return "ignored"
-        current = self.current_value()
+        try:
+            current = self.current_value()
+        except SourceError:
+            return "failed"
         if not self.accent_changed(current):
             return "unchanged"
 

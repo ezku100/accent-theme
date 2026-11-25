@@ -78,6 +78,33 @@ def test_resolve_source_kind_auto_uses_kde_without_desktop() -> None:
     assert resolve_source_kind("auto", {}) == "kde"
 
 
+def test_resolve_source_kind_auto_uses_waywallen_when_its_config_exists(
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "config.toml"
+    _ = config.write_text('[global]\nlast_wallpaper = "27"\n', encoding="utf-8")
+
+    assert resolve_source_kind("auto", {}, config) == "waywallen"
+
+
+def test_resolve_source_kind_auto_uses_kde_when_waywallen_config_is_absent(
+    tmp_path: Path,
+) -> None:
+    assert resolve_source_kind("auto", {}, tmp_path / "missing.toml") == "kde"
+
+
+def test_resolve_source_auto_fails_when_the_wallpaper_config_is_broken(
+    tmp_path: Path,
+) -> None:
+    environ = {"HOME": str(tmp_path / "home")}
+    paths = ThemePaths.from_environment(environ)
+    paths.waywallen_config.parent.mkdir(parents=True, exist_ok=True)
+    _ = paths.waywallen_config.write_text("esto = [no es toml", encoding="utf-8")
+
+    with pytest.raises(SourceError):
+        _ = resolve_source("auto", paths, environ)
+
+
 def test_resolve_source_kind_rejects_unknown_request() -> None:
     with pytest.raises(SourceError):
         _ = resolve_source_kind("otra", {})

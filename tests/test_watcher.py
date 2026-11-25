@@ -354,3 +354,31 @@ def test_kde_source_keeps_watching_kdeglobals(tmp_path: Path) -> None:
 
     assert watcher.resolved_kind() == "kde"
     assert watcher.watch_path() == tmp_path / "kdeglobals"
+
+
+def test_resolved_kind_prefers_the_wallpaper_when_its_config_exists(
+    tmp_path: Path,
+) -> None:
+    config = write_waywallen_config(tmp_path)
+    watcher = make_waywallen_watcher(
+        tmp_path,
+        environ=make_environment(tmp_path),
+        config=config,
+    )
+
+    assert watcher.resolved_kind() == "waywallen"
+    assert watcher.watch_path() == config
+
+
+def test_handle_event_reports_failure_when_the_wallpaper_config_is_broken(
+    tmp_path: Path,
+) -> None:
+    config = write_waywallen_config(tmp_path)
+    _ = config.write_text("esto = [no es toml", encoding="utf-8")
+    watcher = make_waywallen_watcher(
+        tmp_path,
+        environ=make_environment(tmp_path),
+        config=config,
+    )
+
+    assert watcher.handle_event(str(config)) == "failed"
