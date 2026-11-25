@@ -27,6 +27,8 @@ class ThemePaths:
     waywallen_config: Path
     waywallen_database: Path
     niri_state: Path
+    niri_config: Path
+    niri_border: Path
     kcolor_scheme: Path
     kde_globals_backup: Path
     kde_globals_applied: Path
@@ -71,6 +73,8 @@ class ThemePaths:
                 / "waywallen-v2.db"
             ),
             niri_state=cache_home / "niri-state.json",
+            niri_config=xdg_config / "niri",
+            niri_border=xdg_config / "niri" / "config.d" / "25-border-accent.kdl",
             kcolor_scheme=xdg_data / "color-schemes" / "Matugen.colors",
             kde_globals_backup=cache_home / "kdeglobals-colors.backup",
             kde_globals_applied=cache_home / "kdeglobals-colors.applied",

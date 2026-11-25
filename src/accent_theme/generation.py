@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
-from accent_theme.accent import accent_from_hex, accent_to_hex
+from accent_theme.accent import Accent, accent_from_hex, accent_to_hex
 from accent_theme.apps import AppPaths, apply_app_integrations
 from accent_theme.apps.base import AppResult, atomic_write_text
 from accent_theme.kde_globals import (
@@ -23,6 +23,7 @@ from accent_theme.matugen import (
     invoke_matugen,
     invoke_matugen_image,
 )
+from accent_theme.niri_border import write_niri_border
 from accent_theme.registry import TemplateRegistration, rebuild_config
 from accent_theme.sources import ThemeSource, resolve_source
 from accent_theme.state import ThemeState, write_state
@@ -192,6 +193,17 @@ def _sync_kde(
             write_kcolor_scheme(paths.kcolor_scheme, tokens.colors)
 
 
+def _sync_niri(paths: ThemePaths, accent: Accent) -> None:
+    """Publica el borde de niri con el acento de la shell.
+
+    Sólo si niri está en el sistema: en una sesión de Plasma no se crea
+    ninguna carpeta de configuración que no vaya a usarse.
+    """
+    if not paths.niri_config.is_dir():
+        return
+    write_niri_border(paths.niri_border, accent)
+
+
 def generate_once(
     paths: ThemePaths,
     environ: Mapping[str, str],
@@ -225,6 +237,7 @@ def generate_once(
     _sync_kde(paths, source, tokens)
 
     accent = accent_from_hex(source_color)
+    _sync_niri(paths, accent)
     app_results = apply_app_integrations(
         AppPaths.from_environment(environ),
         accent,

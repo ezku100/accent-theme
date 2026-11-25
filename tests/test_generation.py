@@ -549,3 +549,70 @@ def test_generate_once_writes_state_with_deterministic_timestamp(
         "generatedAt": "2026-11-23T20:00:00Z",
         "status": "ok",
     }
+
+
+def _stub_waywallen(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tokens: MatugenTokens,
+) -> None:
+    """Deja la generación lista con la fuente de Waywallen y tokens fijos."""
+    _stub_source(
+        monkeypatch,
+        ThemeSource(kind="waywallen", reference="27", preview=tmp_path / "preview.gif"),
+    )
+
+    def fake_find(_environ: Mapping[str, str]) -> Path | None:
+        return _binary(tmp_path)
+
+    def fake_rebuild(
+        _config_paths: ThemePaths,
+    ) -> tuple[TemplateRegistration, ...]:
+        return ()
+
+    def fake_invoke_image(
+        _binary: Path,
+        _image: Path,
+        _config: Path,
+    ) -> MatugenTokens:
+        return tokens
+
+    monkeypatch.setattr(generation_module, "find_matugen", fake_find)
+    monkeypatch.setattr(generation_module, "rebuild_config", fake_rebuild)
+    monkeypatch.setattr(
+        generation_module,
+        "invoke_matugen_image",
+        fake_invoke_image,
+    )
+    _stub_empty_integrations(monkeypatch)
+
+
+def test_generate_once_publishes_the_niri_border(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El borde de niri sale del mismo acento que el resto de la shell."""
+    paths = _paths(tmp_path)
+    tokens = _tokens(source_color="#0b79c2")
+    _stub_waywallen(tmp_path, monkeypatch, tokens)
+    _ = paths.niri_config.mkdir(parents=True)
+
+    _ = generate_once(paths, {"HOME": str(tmp_path)}, "waywallen")
+
+    assert paths.niri_border.is_file()
+    contents = paths.niri_border.read_text(encoding="utf-8")
+    assert 'active-color "#0b79c2"' in contents
+
+
+def test_generate_once_skips_the_niri_border_without_niri(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sin niri en el sistema el motor no inventa una carpeta de configuración."""
+    paths = _paths(tmp_path)
+    tokens = _tokens(source_color="#0b79c2")
+    _stub_waywallen(tmp_path, monkeypatch, tokens)
+
+    _ = generate_once(paths, {"HOME": str(tmp_path)}, "waywallen")
+
+    assert not paths.niri_border.exists()
