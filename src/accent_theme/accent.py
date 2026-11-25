@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import colorsys
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -25,6 +26,16 @@ class Accent:
 KDE_DEFAULT_ACCENT: Final = Accent(61, 174, 233)
 RGB_CHANNEL_COUNT: Final = 3
 RGB_CHANNEL_MAX: Final = 255
+HEX_COLOR_PATTERN: Final = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+class AccentError(RuntimeError):
+    """Error al convertir o leer un color de acento."""
+
+    @classmethod
+    def invalid_hex(cls, value: str) -> AccentError:
+        """Construye el error de un color hexadecimal inválido."""
+        return cls(f"color hexadecimal inválido: {value}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +142,16 @@ def read_explicit_accent(path: Path) -> Accent | None:
 def accent_to_hex(accent: Accent) -> str:
     """Convierte un color RGB al formato hexadecimal sRGB."""
     return f"#{accent.red:02x}{accent.green:02x}{accent.blue:02x}"
+
+
+def accent_from_hex(value: str) -> Accent:
+    """Convierte un color hexadecimal sRGB de seis dígitos a componentes RGB."""
+    if HEX_COLOR_PATTERN.fullmatch(value) is None:
+        raise AccentError.invalid_hex(value)
+    red = int(value[1:3], 16)
+    green = int(value[3:5], 16)
+    blue = int(value[5:7], 16)
+    return Accent(red, green, blue)
 
 
 def accent_to_rgb(accent: Accent) -> tuple[float, float, float]:

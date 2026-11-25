@@ -3,8 +3,12 @@ from __future__ import annotations
 import stat
 from typing import TYPE_CHECKING
 
+import pytest
+
 from accent_theme.accent import (
     Accent,
+    AccentError,
+    accent_from_hex,
     accent_to_hex,
     read_accent,
     read_kde_accent,
@@ -46,6 +50,23 @@ def test_read_accent_uses_kde_blue_when_values_are_invalid(tmp_path: Path) -> No
 
 def test_accent_to_hex_returns_lowercase_srgb() -> None:
     assert accent_to_hex(Accent(61, 174, 233)) == "#3daee9"
+
+
+def test_accent_from_hex_returns_expected_components() -> None:
+    assert accent_from_hex("#3daee9") == Accent(61, 174, 233)
+
+
+def test_accent_from_hex_accepts_uppercase() -> None:
+    assert accent_from_hex("#3DAEE9") == Accent(61, 174, 233)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["3daee9", "#fff", "#gggggg", "#1234567", ""],
+)
+def test_accent_from_hex_rejects_invalid_values(value: str) -> None:
+    with pytest.raises(AccentError):
+        _ = accent_from_hex(value)
 
 
 def test_read_kde_accent_prefers_kreadconfig_output(tmp_path: Path) -> None:

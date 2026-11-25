@@ -35,6 +35,7 @@ REQUIRED_ROLES: Final = (
     "error_container",
     "on_error_container",
 )
+REQUIRED_IMAGE_ROLES: Final = (*REQUIRED_ROLES, "source_color")
 
 
 class MatugenError(RuntimeError):
@@ -150,7 +151,11 @@ def _extract_dark_color(colors: Mapping[str, object], role: str) -> str:
     return color
 
 
-def parse_matugen_json(text: str) -> MatugenTokens:
+def parse_matugen_json(
+    text: str,
+    *,
+    required_roles: tuple[str, ...] = REQUIRED_ROLES,
+) -> MatugenTokens:
     """Parsea el JSON role-first de Matugen 4.2 y valida sus roles."""
     try:
         raw = cast("object", json.loads(text))
@@ -164,7 +169,7 @@ def parse_matugen_json(text: str) -> MatugenTokens:
         for role in colors
         if (color := _optional_dark_color(colors, role)) is not None
     }
-    for role in REQUIRED_ROLES:
+    for role in required_roles:
         _ = _extract_dark_color(colors, role)
     return MatugenTokens(colors=parsed)
 
@@ -198,6 +203,51 @@ def find_matugen(environ: Mapping[str, str]) -> Path | None:
     if _executable(local_candidate):
         return local_candidate.resolve(strict=False)
     return None
+
+
+def invoke_matugen_image(
+    binary: Path,
+    image: Path,
+    config: Path,
+    *,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> MatugenTokens:
+    """Ejecuta Matugen sobre una imagen y exige el color de origen."""
+    if not _executable(binary):
+        raise MatugenNotFoundError.missing(binary)
+
+    command = [
+        str(binary),
+        "image",
+        str(image),
+        "-c",
+        str(config),
+        "-t",
+        "scheme-fidelity",
+        "-m",
+        "dark",
+        "-j",
+        "hex",
+        "--prefer",
+        "saturation",
+    ]
+    try:
+        process = subprocess.run(  # noqa: S603
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise MatugenTimeoutError.expired(timeout) from error
+    except OSError as error:
+        raise MatugenCommandError.failed(1, str(error)) from error
+
+    if process.returncode != 0:
+        detail = process.stderr or process.stdout
+        raise MatugenCommandError.failed(process.returncode, detail)
+    return parse_matugen_json(process.stdout, required_roles=REQUIRED_IMAGE_ROLES)
 
 
 def invoke_matugen(
