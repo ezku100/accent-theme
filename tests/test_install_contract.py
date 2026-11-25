@@ -30,6 +30,8 @@ BASE_APPS = (
     "zen",
     "steam",
     "caparazon-shell",
+    "gtk3",
+    "gtk4",
 )
 NATIVE_TEMPLATE_APPS = (
     "materialgram",
@@ -158,6 +160,7 @@ def test_service_unit_watches_the_accent_color() -> None:
 
     assert "ExecStart=" in contents
     assert "accent-theme watch" in contents
+    assert "--source auto" in contents
     assert "WantedBy=default.target" in contents
     assert "[Service]" in contents
     assert "[Install]" in contents

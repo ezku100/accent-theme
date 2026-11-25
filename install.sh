@@ -13,7 +13,7 @@ set -euo pipefail
 PROGRAM_NAME="install.sh"
 LEGACY_UNIT="kitty-theme-watch.service"
 NEW_UNIT="accent-theme.service"
-BASE_APPS=(kitty ghostty konsole kate cava heroic zen steam caparazon-shell)
+BASE_APPS=(kitty ghostty konsole kate cava heroic zen steam caparazon-shell gtk3 gtk4)
 NATIVE_TEMPLATE_APPS=(materialgram obs)
 INSTALL_ITEMS=(src templates templates.d systemd)
 REQUIRED_INSTALL_DEPS=(matugen python3 inotifywait flock kreadconfig6)

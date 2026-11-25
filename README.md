@@ -1,13 +1,19 @@
 # accent-theme
 
-Motor global de tema para KDE Plasma basado en `AccentColor` y
+Motor global de tema para Niri y KDE Plasma: toma el color del wallpaper
+(Waywallen) o `AccentColor` y lo reparte con
 [Matugen](https://github.com/Innovative-System-Design/Matugen).
 
-Lee el color de acento de `~/.config/kdeglobals`, genera una paleta Material
-completa y la reparte entre las aplicaciones integradas: Kitty, Ghostty,
-Konsole, Kate, Cava, Heroic, Zen Browser, Millennium (Steam) y Caparazón
-Shell. Un servicio de usuario regenera la paleta cada vez que cambia el
-acento.
+Lee el color de origen —el wallpaper activo de Waywallen cuando la sesión
+es Niri, o el acento de `~/.config/kdeglobals` cuando la sesión es Plasma—,
+genera una paleta Material completa y la reparte entre las aplicaciones
+integradas: Kitty, Ghostty, Konsole, Kate, Cava, Heroic, Zen Browser,
+Millennium (Steam), GTK 3/4 y Caparazón Shell. Un servicio de usuario
+regenera la paleta cada vez que cambia la fuente.
+
+Los colores de Qt llegan por `plasma-integration`: el motor escribe sólo las
+secciones `[Colors:*]` de `kdeglobals` y publica `Matugen.colors`. No se usa
+`qt6ct` ni Kvantum, y en modo Plasma el bloque original se restaura intacto.
 
 Cuatro apps más no encajan en una plantilla de Matugen, porque escriben su
 configuración en sitios donde una plantilla no llega (un JSON que hay que
@@ -24,9 +30,9 @@ añadir una app nueva y qué hacer cuando algo no cambia de color.
 | --- | --- | --- |
 | `matugen` | `matugen` | Genera la paleta y los archivos por app |
 | `python3` (>= 3.11) | `python3` | Ejecuta el motor |
-| `inotifywait` | `inotify-tools` | Vigila `kdeglobals` |
+| `inotifywait` | `inotify-tools` | Vigila la fuente activa |
 | `flock` | `util-linux` | Serializa las regeneraciones |
-| `kreadconfig6` | `libkf6config-bin` | Lee `AccentColor` |
+| `kreadconfig6` | `libkf6config-bin` | Lee `AccentColor` en modo Plasma |
 
 ```bash
 sudo apt install matugen python3 inotify-tools util-linux libkf6config-bin
